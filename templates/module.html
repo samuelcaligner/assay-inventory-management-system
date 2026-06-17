@@ -44,7 +44,7 @@ h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1
     border-color: #0056b3;
 }
 
-/* NEW: Scroll wrapper para sa table lang */
+/* Scroll wrapper para sa table lang */
 .table-scroll {
     max-height: 400px;
     overflow-y: auto;
@@ -53,7 +53,7 @@ h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1
     margin-top: 15px;
 }
 
-/* Sticky header para di mawala pag scroll */
+/* Sticky header */
 .table-scroll thead th {
     position: sticky;
     top: 0;
@@ -66,10 +66,10 @@ table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
 input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
 
-/* FIX: Gray lang pag readonly PERO HINDI urgent */
+/* Gray lang pag readonly PERO HINDI urgent */
 input[readonly]:not(.urgent) { background: #e9ecef!important; cursor: not-allowed; }
 
-/* REMARK COLORS - Dapat nasa ilalim para manalo sa CSS */
+/* REMARK COLORS */
 .remark-normal {
     background: white!important;
     color: black!important;
@@ -128,7 +128,6 @@ input[readonly]:not(.urgent) { background: #e9ecef!important; cursor: not-allowe
         <input type="text" class="search-box" id="searchBox" placeholder="Search Item Code or Description..." oninput="searchTable()">
     </div>
 
-    <!-- NEW: Binalutan ko ng div para may scroll lang table -->
     <div class="table-scroll">
         <table id="sohTable">
             <thead>
@@ -177,8 +176,8 @@ window.onload = loadItems;
 
 function loadItems() {
     fetch('/get_items/' + encodeURIComponent(moduleName))
-   .then(res => res.json())
-   .then(items => {
+  .then(res => res.json())
+  .then(items => {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         if(items.length === 0) addRow();
@@ -194,9 +193,10 @@ function addRowToTable(item, index) {
     const tbody = document.getElementById('tableBody');
     const row = document.createElement('tr');
 
-    // FIX: Check kung <=1 para red agad pag load
-    const remarkClass = (parseInt(item.soh) <= 1)? 'urgent' : 'remark-normal';
-    const remarkText = (parseInt(item.soh) <= 1)? 'URGENT' : item.remark;
+    // FIX: Wag mag-urgent pag blank pa item code/desc
+    const hasItem = item.code && item.code.trim()!== '' && item.desc && item.desc.trim()!== '';
+    const remarkClass = (hasItem && parseInt(item.soh) <= 1)? 'urgent' : 'remark-normal';
+    const remarkText = (hasItem && parseInt(item.soh) <= 1)? 'URGENT' : item.remark;
 
     // LOCK IN PAG HINDI ADMIN
     const inReadonly = isAdmin? '' : 'readonly';
@@ -239,12 +239,13 @@ function handleEnter(event, input, type) {
         if(soh < 0) soh = 0;
         sohInput.value = soh;
 
-        // FIX: Force className para sure mag-red
-        if(soh <= 1) {
+        // FIX: Check muna kung may item bago mag-red
+        const hasItem = codeInput.value.trim()!== '' && descInput.value.trim()!== '';
+        if(hasItem && soh <= 1) {
             remarkInput.value = 'URGENT';
             remarkInput.className = 'urgent';
         } else {
-            remarkInput.value = '';
+            remarkInput.value = hasItem? remarkInput.value : '';
             remarkInput.className = 'remark-normal';
         }
 
@@ -297,8 +298,8 @@ function deleteRow(btn) {
 function showHistory(event, itemCode) {
     event.preventDefault();
     fetch('/get_history/' + encodeURIComponent(moduleName))
-   .then(res => res.json())
-   .then(history => {
+  .then(res => res.json())
+  .then(history => {
         const filtered = history.filter(h => h.item_code === itemCode);
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = '';
