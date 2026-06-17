@@ -52,7 +52,6 @@ def index():
                 return redirect(url_for('dashboard'))
             else:
                 return render_template('index.html', error='Invalid username or password')
-
         elif action == 'register':
             if username in users:
                 return render_template('index.html', error='Username already exists')
@@ -60,14 +59,13 @@ def index():
             save_users(users)
             session['user'] = username
             return redirect(url_for('dashboard'))
-
     return render_template('index.html')
 
 @app.route('/dashboard')
 def dashboard():
     if 'user' not in session:
         return redirect(url_for('index'))
-    return render_template('dashboard.html', user=session['user'])
+    return render_template('dashboard.html', user=session['user'], is_admin=session['user']=='admin')
 
 @app.route('/logout')
 def logout():
@@ -90,8 +88,8 @@ def save_modules_route():
 
 @app.route('/add_module', methods=['POST'])
 def add_module():
-    if 'user' not in session:
-        return jsonify({'status': 'error'})
+    if 'user' not in session or session['user']!= 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'})
     name = request.json.get('name', '')
     modules = load_modules()
     modules.append(name)
@@ -100,8 +98,8 @@ def add_module():
 
 @app.route('/delete_module', methods=['POST'])
 def delete_module():
-    if 'user' not in session:
-        return jsonify({'status': 'error'})
+    if 'user' not in session or session['user']!= 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'})
     index = request.json.get('index', -1)
     modules = load_modules()
     if 0 <= index < len(modules):
@@ -111,8 +109,8 @@ def delete_module():
 
 @app.route('/rename_module', methods=['POST'])
 def rename_module():
-    if 'user' not in session:
-        return jsonify({'status': 'error'})
+    if 'user' not in session or session['user']!= 'admin':
+        return jsonify({'status': 'error', 'message': 'Admin only'})
     index = request.json.get('index', -1)
     new_name = request.json.get('newName', '')
     modules = load_modules()
@@ -145,7 +143,7 @@ def save_items(module):
     items = request.json.get('items', [])
     file = get_items_file(module)
     with open(file, 'w') as f:
-        json.dump(items, f)
+        json.dump(items, f, indent=2)
     return jsonify({'status': 'ok'})
 
 @app.route('/get_history/<module>')
@@ -183,7 +181,7 @@ def add_history(module):
     })
 
     with open(file, 'w') as f:
-        json.dump(history, f)
+        json.dump(history, f, indent=2)
 
     return jsonify({'status': 'ok'})
 
