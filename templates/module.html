@@ -64,10 +64,10 @@ table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
 input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
 
-/* FIX: Wag na i-gray pag outstock */
+/* Wag i-gray pag may remark color */
 input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef!important; cursor: not-allowed; }
 
-/* REMARK COLORS - 3 levels na */
+/* REMARK COLORS - 3 levels */
 .remark-normal {
     background: white!important;
     color: black!important;
@@ -345,6 +345,7 @@ function closeHistory() {
 function searchTable() {
     const searchVal = document.getElementById('searchBox').value.toLowerCase();
     const rows = document.querySelectorAll('#tableBody tr');
+    let firstMatch = null;
 
     rows.forEach(row => {
         row.cells[0].querySelector('input').classList.remove('highlight');
@@ -363,8 +364,20 @@ function searchTable() {
         if(code.includes(searchVal) || desc.includes(searchVal)) {
             row.cells[0].querySelector('input').classList.add('highlight');
             row.cells[1].querySelector('input').classList.add('highlight');
+
+            if(!firstMatch) firstMatch = row;
         }
     });
+
+    // Auto-scroll sa first match sa loob ng table lang
+    if(firstMatch) {
+        const tableScroll = document.querySelector('.table-scroll');
+        const rowTop = firstMatch.offsetTop;
+        tableScroll.scrollTo({
+            top: rowTop - 50,
+            behavior: 'smooth'
+        });
+    }
 }
 </script>
 </body>
