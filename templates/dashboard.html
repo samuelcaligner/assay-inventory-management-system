@@ -8,22 +8,22 @@ body {
     font-family: Arial;
     margin: 0;
     padding: 0;
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
     
-    /* LAB BACKGROUND - Test tubes + Beaker SVG */
+    /* LAB BACKGROUND - Test tube + Erlenmeyer + Beaker */
     background: #f0f2f5;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500" viewBox="0 0 500 500"><g opacity="0.04" fill="%23007bff"><path d="M100 350h50v-200a25 25 0 1 0-50 0v200zm150 0h50v-250a25 25 0 1 0-50 0v250zm150 50h50v-220a25 25 0 1 0-50 0v220zm-200 75h350v25h-350v-25z"/><circle cx="125" cy="100" r="18"/><circle cx="275" cy="50" r="18"/><circle cx="425" cy="80" r="18"/><path d="M450 200h30v100h-30z M455 205h20v5h-20z M455 215h20v5h-20z"/></g></svg>');
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="550" height="550" viewBox="0 0 550 550"><g opacity="0.04" fill="%23007bff"><path d="M70 370h35v-210a17 17 0 1 0-35 0v210zm180 0h35v-250a17 17 0 1 0-35 0v250zm-70 80h250v22h-250v-22z"/><circle cx="87" cy="130" r="14"/><circle cx="197" cy="90" r="14"/><path d="M380 480l-25 65h50l-25-65z M355 545h50v15h-50z"/><path d="M160 500l-15 55h30l-15-55z M145 555h30v12h-30z"/><path d="M450 280h45v95h-45z M455 285h35v7h-35z M455 300h35v7h-35z M455 315h35v7h-35z M455 330h35v7h-35z"/><path d="M480 420h45v85h-45z M485 425h35v7h-35z M485 440h35v7h-35z"/><path d="M40 440h40v75h-40z M45 445h30v6h-30z M45 460h30v6h-30z"/><path d="M300 470l-20 70h40l-20-70z M280 540h40v15h-40z"/></g></svg>');
     background-repeat: repeat;
-    background-size: 500px 500px;
+    background-size: 550px 550px;
 }
 
-/* WATERMARK - Nasa likod lang */
+/* WATERMARK - Nasa likod lang, di matatakpan */
 .bg-text {
     position: fixed;
     top: 0;
@@ -54,6 +54,7 @@ body {
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin: 20px;
 }
 
 h1 {
@@ -115,6 +116,7 @@ h1 {
     display: flex;
     gap: 15px;
     justify-content: center;
+    flex-wrap: wrap;
 }
 
 .btn {
@@ -144,19 +146,20 @@ h1 {
     <div class="btn-grid" id="btnGrid"></div>
 
     <div class="controls">
-        <button class="btn btn-add" id="addBtn" onclick="addButton()">+ Add Button</button>
+        <button class="btn btn-add" id="addBtn" onclick="addButton()">+ Add Module</button>
         <a href="/logout"><button class="btn btn-logout">Logout</button></a>
     </div>
 </div>
 
 <script>
-const isAdmin = {{ 'true' if is_admin else 'false' }};
+const isAdmin = "{{ 'true' if is_admin else 'false' }}" === "true";
 const defaultButtons = ['Oil Lab','Wet Lab','Fire Assay','Sample Preparation','Office','PPE'];
 
 window.onload = function() {
     loadButtons();
     
-    // LOCK ADD BUTTON SA USER
+    // LOCK ADD BUTTON SA USER LANG - ADMIN LANG KITA
+    console.log("IsAdmin:", isAdmin);
     if(!isAdmin) {
         document.getElementById('addBtn').classList.add('hidden');
     }
@@ -183,7 +186,7 @@ function loadButtons() {
             btn.className = 'module-btn';
             btn.dataset.index = index;
             
-            // Delete button - admin lang makakakita
+            // Delete button - admin lang
             let delBtn = '';
             if(isAdmin) {
                 delBtn = `<button class="del" onclick="deleteButton(${index}, event)">x</button>`;
@@ -196,7 +199,7 @@ function loadButtons() {
                 }
             };
 
-            // Rename - admin lang pwede
+            // Rename - admin lang pwede via right click
             if(isAdmin) {
                 btn.oncontextmenu = (e) => {
                     e.preventDefault();
@@ -227,7 +230,7 @@ function renameButton(index, oldName, btnElement) {
 }
 
 function addButton() {
-    if(!isAdmin) return;
+    if(!isAdmin) return; // DOUBLE LOCK
     const name = prompt('Enter button name:', 'New Module');
     if(name && name.trim()!== '') {
         fetch('/add_module', {
