@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>{{ module_name }} - ASSAY INVENTORY</title>
+<style>
+body { font-family: Arial; background: #f4f4f4; padding: 20px; position: relative; overflow: hidden; }
+.box { background: white; padding: 20px; border-radius: 8px; max-width: 1200px; margin: auto; position: relative; z-index: 1; }
+
+.bg-watermark {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8vw;
+  font-weight: bold;
+  color: rgba(0,0,0,0.03);
+  z-index: 0;
+  pointer-events: none;
+  word-wrap: break-word;
+  padding: 20px;
+  line-height: 1.3;
+  text-align: center;
+}
+
+h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
+.back { display: inline-block; margin-bottom: 15px; padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.search-box {
+  padding: 8px 12px;
+  border: 2px solid #007bff;
+  border-radius: 6px;
+  width: 250px;
+  font-size: 14px;
+}
+.search-box:focus {
+  outline: none;
+  border-color: #0056b3;
+}
+
+table { width: 100%; border-collapse: collapse; margin-top: 15px; position: relative; z-index: 2; }
+th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+th { background: #007bff; color: white; }
+input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
+
+/* FIX: Gray lang pag readonly PERO HINDI urgent */
+input[readonly]:not(.urgent) { background: #e9ecef!important; cursor: not-allowed; }
+
+/* REMARK COLORS - Dapat nasa ilalim para manalo sa CSS */
+.remark-normal {
+  background: white!important;
+  color: black!important;
+}
+.urgent {
+  background: red!important;
+  color: white!important;
+  font-weight: bold;
+}
+.highlight { background: yellow!important; }
+
+.btn-add { margin-top: 10px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+.btn-add:hover { background: #218838; }
+.del-row { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+
+.popup {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  z-index: 1000;
+  max-height: 400px;
+  overflow-y: auto;
+  min-width: 600px;
+}
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}
+.popup h3 { margin-top: 0; color: #007bff; }
+.close-btn { float: right; font-size: 24px; cursor: pointer; }
+.history-table { font-size: 12px; width: 100%; }
+</style>
+</head>
+<body>
+
+<div class="bg-watermark">ASSAY<br>LABORATORY</div>
+
+<div class="box">
+  <a href="/dashboard" class="back">← Back to Dashboard</a>
+  <h1>{{ module_name }} - Stock on Hand</h1>
+
+  <div class="table-header">
+    <div></div>
+    <input type="text" class="search-box" id="searchBox" placeholder="Search Item Code or Description..." oninput="searchTable()">
+  </div>
+
+  <table id="sohTable">
+    <thead>
+      <tr>
+        <th>ITEM CODE</th>
+        <th>ITEM DESCRIPTION</th>
+        <th>UNIT OF MEASURE</th>
+        <th>OUT</th>
+        <th>IN</th>
+        <th>SOH</th>
+        <th>REMARK</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+
+  <button class="btn-add" onclick="addRow()">+ Add Item</button>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeHistory()"></div>
+<div class="popup" id="historyPopup">
+  <span class="close-btn" onclick="closeHistory()">&times;</span>
+  <h3 id="popupTitle">Transaction History</h3>
+  <table class="history-table" id="historyTable">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Time</th>
+        <th>User</th>
+        <th>Item Desc</th>
+        <th>IN</th>
+        <th>OUT</th>
+        <th>SOH</th>
+      </tr>
+    </thead>
+    <tbody id="historyBody"></tbody>
+  </table>
+</div>
+
+<script>
+const moduleName = "{{ module_name }}";
+const isAdmin = {{ 'true' if is_admin else 'false' }};
+window.onload = loadItems;
+
+function loadItems() {
+  fetch('/get_items/' + encodeURIComponent(moduleName))
+.then(res => res.json())
+.then(items => {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '';
+    if(items.length === 0) addRow();
+    items.forEach((item, index) => addRowToTable(item, index));
+  });
+}
+
+function addRow() {
+  addRowToTable({code:'', desc:'', uom:'', out:'', in:'', soh:0, remark:''}, -1);
+}
+
+function addRowToTable(item, index) {
+  const tbody = document.getElementById('tableBody');
+  const row = document.createElement('tr');
+
+  // FIX: Check kung <=1 para red agad pag load
+  const remarkClass = (parseInt(item.soh) <= 1)? 'urgent' : 'remark-normal';
+  const remarkText = (parseInt(item.soh) <= 1)? 'URGENT' : item.remark;
+
+  // LOCK IN PAG HINDI ADMIN
+  const inReadonly = isAdmin? '' : 'readonly';
+
+  row.innerHTML = `
+    <td><input type="text" value="${item.code}" oncontextmenu="showHistory(event, '${item.code}')"></td>
+    <td><input type="text" value="${item.desc}"></td>
+    <td><input type="text" value="${item.uom}" onchange="saveRow(this)"></td>
+    <td><input type="number" min="0" value="${item.out}" onkeydown="handleEnter(event, this, 'out')"></td>
+    <td><input type="number" min="0" value="${item.in}" onkeydown="handleEnter(event, this, 'in')" ${inReadonly}></td>
+    <td><input type="number" value="${item.soh}" readonly></td>
+    <td><input type="text" value="${remarkText}" readonly class="${remarkClass}"></td>
+    <td><button class="del-row" onclick="deleteRow(this)">X</button></td>
+  `;
+  tbody.appendChild(row);
+}
+
+function handleEnter(event, input, type) {
+  if(event.key === 'Enter') {
+    event.preventDefault();
+
+    // BLOCK IN KUNG HINDI ADMIN
+    if(type === 'in' &&!isAdmin) return;
+
+    const row = input.closest('tr');
+    const outInput = row.cells[3].querySelector('input');
+    const inInput = row.cells[4].querySelector('input');
+    const sohInput = row.cells[5].querySelector('input');
+    const remarkInput = row.cells[6].querySelector('input');
+    const codeInput = row.cells[0].querySelector('input');
+    const descInput = row.cells[1].querySelector('input');
+
+    let soh = parseInt(sohInput.value) || 0;
+    let outVal = parseInt(outInput.value) || 0;
+    let inVal = parseInt(inInput.value) || 0;
+
+    if(type === 'out') soh = soh - outVal;
+    if(type === 'in') soh = soh + inVal;
+
+    if(soh < 0) soh = 0;
+    sohInput.value = soh;
+
+    // FIX: Force className para sure mag-red
+    if(soh <= 1) {
+      remarkInput.value = 'URGENT';
+      remarkInput.className = 'urgent';
+    } else {
+      remarkInput.value = '';
+      remarkInput.className = 'remark-normal';
+    }
+
+    fetch('/add_history/' + encodeURIComponent(moduleName), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        item_code: codeInput.value,
+        item_desc: descInput.value,
+        in: type === 'in'? inVal : 0,
+        out: type === 'out'? outVal : 0,
+        soh: soh
+      })
+    });
+
+    outInput.value = '';
+    inInput.value = '';
+    saveRow(input);
+  }
+}
+
+function saveRow(input) {
+  const rows = [];
+  document.querySelectorAll('#tableBody tr').forEach(row => {
+    rows.push({
+      code: row.cells[0].querySelector('input').value,
+      desc: row.cells[1].querySelector('input').value,
+      uom: row.cells[2].querySelector('input').value,
+      out: row.cells[3].querySelector('input').value,
+      in: row.cells[4].querySelector('input').value,
+      soh: row.cells[5].querySelector('input').value,
+      remark: row.cells[6].querySelector('input').value
+    });
+  });
+
+  fetch('/save_items/' + encodeURIComponent(moduleName), {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({items: rows})
+  });
+}
+
+function deleteRow(btn) {
+  if(confirm('Delete this item?')) {
+    btn.closest('tr').remove();
+    saveRow(btn);
+  }
+}
+
+function showHistory(event, itemCode) {
+  event.preventDefault();
+  fetch('/get_history/' + encodeURIComponent(moduleName))
+.then(res => res.json())
+.then(history => {
+    const filtered = history.filter(h => h.item_code === itemCode);
+    const tbody = document.getElementById('historyBody');
+    tbody.innerHTML = '';
+
+    if(filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7">No history yet</td></tr>';
+    } else {
+      filtered.reverse().forEach(h => {
+        tbody.innerHTML += `
+          <tr>
+            <td>${h.date}</td>
+            <td>${h.time}</td>
+            <td>${h.user}</td>
+            <td>${h.item_desc || ''}</td>
+            <td>${h.in}</td>
+            <td>${h.out}</td>
+            <td>${h.soh}</td>
+          </tr>
+        `;
+      });
+    }
+
+    document.getElementById('popupTitle').innerText = 'History: ' + itemCode;
+    document.getElementById('overlay').style.display = 'block';
+    document.getElementById('historyPopup').style.display = 'block';
+  });
+}
+
+function closeHistory() {
+  document.getElementById('overlay').style.display = 'none';
+  document.getElementById('historyPopup').style.display = 'none';
+}
+
+function searchTable() {
+  const searchVal = document.getElementById('searchBox').value.toLowerCase();
+  const rows = document.querySelectorAll('#tableBody tr');
+
+  rows.forEach(row => {
+    row.cells[0].querySelector('input').classList.remove('highlight');
+    row.cells[1].querySelector('input').classList.remove('highlight');
+  });
+
+  if(searchVal === '') {
+    document.querySelector('.box').scrollIntoView({behavior: 'smooth'});
+    return;
+  }
+
+  rows.forEach(row => {
+    const code = row.cells[0].querySelector('input').value.toLowerCase();
+    const desc = row.cells[1].querySelector('input').value.toLowerCase();
+
+    if(code.includes(searchVal) || desc.includes(searchVal)) {
+      row.cells[0].querySelector('input').classList.add('highlight');
+      row.cells[1].querySelector('input').classList.add('highlight');
+    }
+  });
+}
+</script>
+</body>
+</html>
