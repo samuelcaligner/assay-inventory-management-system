@@ -64,7 +64,21 @@ input[readonly]:not(.urgent) { background: #e9ecef!important; cursor: not-allowe
   background: red!important;
   color: white!important;
   font-weight: bold;
+.table-scroll{
+   max-height: 400px;
+   overflow-y: auto;
+   margin-bottom: 80px;
+   border: 1px solid #ddd;
+   borer-radius:5px;
 }
+.table-scroll th {
+  position:sticky
+  top:0;
+  background: #007bff;
+  color: white;
+  z-index: 10;
+}
+  
 .highlight { background: yellow!important; }
 
 .btn-add { margin-top: 10px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
