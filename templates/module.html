@@ -140,7 +140,6 @@ function addRowToTable(item, index) {
     const remark = getRemark(item.soh, hasItem);
     const inReadonly = isAdmin? '' : 'readonly';
 
-    // AUTO-SAVE PAG NAG-TYPE SA ITEM CODE/DESC/UOM
     row.innerHTML = `
         <td><input type="text" value="${item.code}" onchange="saveRow(this)" oncontextmenu="showHistory(event, '${item.code}')"></td>
         <td><input type="text" value="${item.desc}" onchange="saveRow(this)"></td>
@@ -287,6 +286,11 @@ function searchTable() {
             if(!firstMatch) firstMatch = row;
         }
     });
+
+    // AUTO SCROLL SA FIRST MATCH
+    if(firstMatch) {
+        firstMatch.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
 }
 </script>
 </body>
