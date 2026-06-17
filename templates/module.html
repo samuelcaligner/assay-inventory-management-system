@@ -110,8 +110,8 @@ window.onload = loadItems;
 
 function loadItems() {
     fetch('/get_items/' + encodeURIComponent(moduleName))
-   .then(res => res.json())
-   .then(items => {
+  .then(res => res.json())
+  .then(items => {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         if(items.length === 0) addRow();
@@ -140,6 +140,7 @@ function addRowToTable(item, index) {
     const remark = getRemark(item.soh, hasItem);
     const inReadonly = isAdmin? '' : 'readonly';
 
+    // AUTO-SAVE PAG NAG-TYPE SA ITEM CODE/DESC/UOM
     row.innerHTML = `
         <td><input type="text" value="${item.code}" onchange="saveRow(this)" oncontextmenu="showHistory(event, '${item.code}')"></td>
         <td><input type="text" value="${item.desc}" onchange="saveRow(this)"></td>
@@ -229,8 +230,8 @@ function deleteRow(btn) {
 function showHistory(event, itemCode) {
     event.preventDefault();
     fetch('/get_history/' + encodeURIComponent(moduleName))
-   .then(res => res.json())
-   .then(history => {
+  .then(res => res.json())
+  .then(history => {
         const filtered = history.filter(h => h.item_code === itemCode);
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = '';
