@@ -64,7 +64,8 @@ table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
 input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
 
-input[readonly]:not(.urgent):not(.critical) { background: #e9ecef!important; cursor: not-allowed; }
+/* FIX: Wag na i-gray pag outstock */
+input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef!important; cursor: not-allowed; }
 
 /* REMARK COLORS - 3 levels na */
 .remark-normal {
@@ -183,8 +184,8 @@ window.onload = loadItems;
 
 function loadItems() {
     fetch('/get_items/' + encodeURIComponent(moduleName))
- .then(res => res.json())
- .then(items => {
+.then(res => res.json())
+.then(items => {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         if(items.length === 0) addRow();
@@ -210,7 +211,6 @@ function addRowToTable(item, index) {
     const tbody = document.getElementById('tableBody');
     const row = document.createElement('tr');
 
-    // Check kung may item bago mag-remark
     const hasItem = item.code && item.code.trim()!== '' && item.desc && item.desc.trim()!== '';
     const remark = getRemark(item.soh, hasItem);
 
@@ -253,7 +253,6 @@ function handleEnter(event, input, type) {
         if(soh < 0) soh = 0;
         sohInput.value = soh;
 
-        // Update remark with 3 levels
         const hasItem = codeInput.value.trim()!== '' && descInput.value.trim()!== '';
         const remark = getRemark(soh, hasItem);
         remarkInput.value = remark.text;
@@ -308,8 +307,8 @@ function deleteRow(btn) {
 function showHistory(event, itemCode) {
     event.preventDefault();
     fetch('/get_history/' + encodeURIComponent(moduleName))
- .then(res => res.json())
- .then(history => {
+.then(res => res.json())
+.then(history => {
         const filtered = history.filter(h => h.item_code === itemCode);
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = '';
