@@ -75,16 +75,17 @@ input {
     text-align: center;
 }
 
-/* remark colors */
+/* remarks */
 .urgent { background: #ffcc00; }
 .critical { background: orange; }
 .out { background: red; color: white; }
 
-/* search highlight ONLY input */
+/* search highlight */
 .highlight {
     background: yellow !important;
 }
 
+/* buttons */
 .add {
     margin-top: 10px;
     padding: 10px;
@@ -112,9 +113,235 @@ input {
     padding: 20px;
     border: 1px solid #ccc;
     z-index: 999;
+    width: 400px;
 }
 </style>
 </head>
+
+<body>
+
+<div class="box">
+
+<h1>{{ module_name }}</h1>
+
+<div class="topbar">
+    <button class="back" onclick="location.href='/dashboard'">← Back</button>
+    <input class="search" id="searchBox" placeholder="Search..." oninput="searchTable()">
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>CODE</th>
+<th>DESCRIPTION</th>
+<th>UOM</th>
+<th>OUT</th>
+<th>IN</th>
+<th>SOH</th>
+<th>REMARK</th>
+<th>ACTION</th>
+</tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+</table>
+</div>
+
+<button class="add" onclick="addRow()">+ Add Item</button>
+
+</div>
+
+<!-- HISTORY POPUP -->
+<div id="popup">
+    <h3>History</h3>
+    <div id="historyContent"></div>
+    <button onclick="closePopup()">Close</button>
+</div>
+
+<script>
+const moduleName = "{{ module_name }}";
+
+// prevent double rendering bug
+let isLoading = false;
+
+// ================= LOAD (FIXED DUPLICATION) =================
+function load() {
+    if (isLoading) return;
+    isLoading = true;
+
+    fetch("/get_items/" + encodeURIComponent(moduleName))
+    .then(r => r.json())
+    .then(data => {
+
+        const tbody = document.getElementById("tbody");
+
+        // SAFE CLEAR (NO DUPLICATE DOM BUG)
+        tbody.innerHTML = "";
+
+        if (!data || data.length === 0) {
+            addRow({});
+        } else {
+            data.forEach(item => addRow(item));
+        }
+
+        isLoading = false;
+    })
+    .catch(() => {
+        isLoading = false;
+    });
+}
+
+window.onload = load;
+
+// ================= ADD ROW =================
+function addRow(item = {}) {
+    const tbody = document.getElementById("tbody");
+
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+        <td><input value="${item.code || ''}" oncontextmenu="openHistory(event,this)"></td>
+        <td><input value="${item.desc || ''}"></td>
+        <td><input value="${item.uom || ''}"></td>
+        <td><input type="number" value="0"></td>
+        <td><input type="number" value="0"></td>
+        <td><input value="${item.soh || 0}" readonly></td>
+        <td><input readonly></td>
+        <td><button class="del" onclick="deleteRow(this)">X</button></td>
+    `;
+
+    // ENTER trigger
+    row.cells[3].querySelector("input").onkeydown =
+    row.cells[4].querySelector("input").onkeydown =
+    function(e) {
+        if (e.key === "Enter") process(row);
+    };
+
+    tbody.appendChild(row);
+}
+
+// ================= PROCESS IN/OUT (WITH RESET FIX) =================
+function process(row) {
+    let out = parseInt(row.cells[3].querySelector("input").value) || 0;
+    let inp = parseInt(row.cells[4].querySelector("input").value) || 0;
+
+    let sohInput = row.cells[5].querySelector("input");
+    let soh = parseInt(sohInput.value) || 0;
+
+    soh = soh + inp - out;
+    if (soh < 0) soh = 0;
+
+    sohInput.value = soh;
+
+    let remark = row.cells[6].querySelector("input");
+
+    if (soh === 0) {
+        remark.value = "OUT OF STOCK";
+        remark.className = "out";
+    } else if (soh <= 2) {
+        remark.value = "CRITICAL";
+        remark.className = "critical";
+    } else if (soh <= 5) {
+        remark.value = "URGENT";
+        remark.className = "urgent";
+    } else {
+        remark.value = "";
+        remark.className = "";
+    }
+
+    save();
+
+    // RESET FIX (YOUR MAIN ISSUE)
+    row.cells[3].querySelector("input").value = 0;
+    row.cells[4].querySelector("input").value = 0;
+}
+
+// ================= SAVE =================
+function save() {
+    let items = [];
+
+    document.querySelectorAll("#tbody tr").forEach(r => {
+        items.push({
+            code: r.cells[0].querySelector("input").value,
+            desc: r.cells[1].querySelector("input").value,
+            uom: r.cells[2].querySelector("input").value,
+            soh: r.cells[5].querySelector("input").value
+        });
+    });
+
+    fetch("/save_items/" + encodeURIComponent(moduleName), {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({items})
+    });
+}
+
+// ================= DELETE =================
+function deleteRow(btn) {
+    btn.closest("tr").remove();
+    save();
+}
+
+// ================= SEARCH FIXED =================
+function searchTable() {
+    const val = document.getElementById("searchBox").value.toLowerCase();
+
+    document.querySelectorAll("#tbody tr").forEach(row => {
+        const code = row.cells[0].querySelector("input");
+        const desc = row.cells[1].querySelector("input");
+
+        code.classList.remove("highlight");
+        desc.classList.remove("highlight");
+
+        if (
+            code.value.toLowerCase().includes(val) ||
+            desc.value.toLowerCase().includes(val)
+        ) {
+            code.classList.add("highlight");
+            desc.classList.add("highlight");
+            row.scrollIntoView({behavior:"smooth", block:"center"});
+        }
+    });
+}
+
+// ================= HISTORY =================
+function openHistory(event, input) {
+    event.preventDefault();
+
+    fetch("/get_history/" + encodeURIComponent(moduleName))
+    .then(r => r.json())
+    .then(data => {
+        let filtered = data.filter(x => x.item_code === input.value);
+
+        let html = "";
+
+        if (filtered.length === 0) {
+            html = "<p>No history found</p>";
+        } else {
+            filtered.reverse().forEach(h => {
+                html += `
+                    <div style="border-bottom:1px solid #ddd; padding:5px;">
+                        <b>${h.date} ${h.time}</b><br>
+                        User: ${h.user}<br>
+                        IN: ${h.in} | OUT: ${h.out} | SOH: ${h.soh}
+                    </div>
+                `;
+            });
+        }
+
+        document.getElementById("historyContent").innerHTML = html;
+        document.getElementById("popup").style.display = "block";
+    });
+}
+
+function closePopup() {
+    document.getElementById("popup").style.display = "none";
+}
+</script>
+
+</body>
+</html>
 
 <body>
 
