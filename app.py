@@ -8,8 +8,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'asssay_secret_key_2026')
 
 def get_db():
-conn = psycopg2.connect(os.environ['DATABASE_URL'])
-return conn
+    conn = psycopg2.connect(os.environ['DATABASE_URL'])
+    return conn
 
 # ========== LOGIN/REGISTER ==========
 @app.route('/', methods=['GET', 'POST'])
