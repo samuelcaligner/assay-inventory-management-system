@@ -162,33 +162,34 @@ input {
 <script>
 const moduleName = "{{ module_name }}";
 
-// prevent double rendering bug
-let isLoading = false;
+// 🔥 HARD LOCK (prevents double rendering)
+let hasLoaded = false;
 
-// ================= LOAD (FIXED DUPLICATION) =================
+// ================= LOAD (100% NO DUPLICATE BUG) =================
 function load() {
-    if (isLoading) return;
-    isLoading = true;
+
+    if (hasLoaded) return;
+    hasLoaded = true;
+
+    const tbody = document.getElementById("tbody");
+
+    // HARD CLEAR (safer than innerHTML in Render)
+    while (tbody.firstChild) {
+        tbody.removeChild(tbody.firstChild);
+    }
 
     fetch("/get_items/" + encodeURIComponent(moduleName))
     .then(r => r.json())
     .then(data => {
 
-        const tbody = document.getElementById("tbody");
-
-        // SAFE CLEAR (NO DUPLICATE DOM BUG)
-        tbody.innerHTML = "";
-
-        if (!data || data.length === 0) {
+        if (!Array.isArray(data) || data.length === 0) {
             addRow({});
-        } else {
-            data.forEach(item => addRow(item));
+            return;
         }
 
-        isLoading = false;
-    })
-    .catch(() => {
-        isLoading = false;
+        for (let i = 0; i < data.length; i++) {
+            addRow(data[i]);
+        }
     });
 }
 
@@ -252,7 +253,7 @@ function process(row) {
 
     save();
 
-    // RESET FIX (YOUR MAIN ISSUE)
+    // RESET IN/OUT (YOUR ORIGINAL ISSUE FIXED)
     row.cells[3].querySelector("input").value = 0;
     row.cells[4].querySelector("input").value = 0;
 }
@@ -283,7 +284,7 @@ function deleteRow(btn) {
     save();
 }
 
-// ================= SEARCH FIXED =================
+// ================= SEARCH =================
 function searchTable() {
     const val = document.getElementById("searchBox").value.toLowerCase();
 
@@ -341,447 +342,4 @@ function closePopup() {
 </script>
 
 </body>
-</html>
-
-<body>
-
-<div class="box">
-
-<h1>{{ module_name }}</h1>
-
-<div class="topbar">
-    <button class="back" onclick="location.href='/dashboard'">← Back</button>
-    <input class="search" id="searchBox" placeholder="Search..." oninput="searchTable()">
-</div>
-
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>CODE</th>
-<th>DESCRIPTION</th>
-<th>UOM</th>
-<th>OUT</th>
-<th>IN</th>
-<th>SOH</th>
-<th>REMARK</th>
-<th>ACTION</th>
-</tr>
-</thead>
-
-<tbody id="tbody"></tbody>
-</table>
-</div>
-
-<button class="add" onclick="addRow()">+ Add Item</button>
-
-</div>
-
-<!-- HISTORY POPUP -->
-<div id="popup">
-    <h3>History</h3>
-    <div id="historyContent"></div>
-    <button onclick="closePopup()">Close</button>
-</div>
-
-<script>
-const moduleName = "{{ module_name }}";
-
-// ================= LOAD =================
-window.onload = load;
-
-function load() {
-    fetch("/get_items/" + encodeURIComponent(moduleName))
-    .then(r => r.json())
-    .then(data => {
-        const tbody = document.getElementById("tbody");
-        tbody.innerHTML = "";
-        if (!data || data.length === 0) addRow();
-        data.forEach(addRow);
-    });
-}
-
-// ================= ADD ROW =================
-function addRow(item = {}) {
-    const tbody = document.getElementById("tbody");
-
-    const row = document.createElement("tr");
-
-    row.innerHTML = `
-        <td><input value="${item.code || ''}" oncontextmenu="openHistory(event,this)"></td>
-        <td><input value="${item.desc || ''}"></td>
-        <td><input value="${item.uom || ''}"></td>
-        <td><input type="number" value="0"></td>
-        <td><input type="number" value="0"></td>
-        <td><input value="${item.soh || 0}" readonly></td>
-        <td><input readonly></td>
-        <td><button class="del" onclick="deleteRow(this)">X</button></td>
-    `;
-
-    row.cells[3].querySelector("input").onkeydown =
-    row.cells[4].querySelector("input").onkeydown =
-    function(e) {
-        if (e.key === "Enter") process(row);
-    };
-
-    tbody.appendChild(row);
-}
-
-// ================= PROCESS IN/OUT (FIXED RESET) =================
-function process(row) {
-    let out = parseInt(row.cells[3].querySelector("input").value) || 0;
-    let inp = parseInt(row.cells[4].querySelector("input").value) || 0;
-
-    let sohInput = row.cells[5].querySelector("input");
-    let soh = parseInt(sohInput.value) || 0;
-
-    soh = soh + inp - out;
-    if (soh < 0) soh = 0;
-
-    sohInput.value = soh;
-
-    let remark = row.cells[6].querySelector("input");
-
-    if (soh === 0) {
-        remark.value = "OUT OF STOCK";
-        remark.className = "out";
-    } else if (soh <= 2) {
-        remark.value = "CRITICAL";
-        remark.className = "critical";
-    } else if (soh <= 5) {
-        remark.value = "URGENT";
-        remark.className = "urgent";
-    } else {
-        remark.value = "";
-        remark.className = "";
-    }
-
-    save();
-
-    // ✅ FIX: RESET IN / OUT TO 0 AFTER ENTER
-    row.cells[3].querySelector("input").value = 0;
-    row.cells[4].querySelector("input").value = 0;
-}
-
-// ================= SAVE =================
-function save() {
-    let items = [];
-
-    document.querySelectorAll("#tbody tr").forEach(r => {
-        items.push({
-            code: r.cells[0].querySelector("input").value,
-            desc: r.cells[1].querySelector("input").value,
-            uom: r.cells[2].querySelector("input").value,
-            soh: r.cells[5].querySelector("input").value
-        });
-    });
-
-    fetch("/save_items/" + encodeURIComponent(moduleName), {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({items})
-    });
-}
-
-// ================= DELETE =================
-function deleteRow(btn) {
-    btn.closest("tr").remove();
-    save();
-}
-
-// ================= SEARCH FIXED =================
-function searchTable() {
-    const val = document.getElementById("searchBox").value.toLowerCase();
-
-    document.querySelectorAll("#tbody tr").forEach(row => {
-        const code = row.cells[0].querySelector("input");
-        const desc = row.cells[1].querySelector("input");
-
-        code.classList.remove("highlight");
-        desc.classList.remove("highlight");
-
-        if (
-            code.value.toLowerCase().includes(val) ||
-            desc.value.toLowerCase().includes(val)
-        ) {
-            code.classList.add("highlight");
-            desc.classList.add("highlight");
-            row.scrollIntoView({behavior:"smooth", block:"center"});
-        }
-    });
-}
-
-// ================= HISTORY =================
-function openHistory(event, input) {
-    event.preventDefault();
-
-    fetch("/get_history/" + encodeURIComponent(moduleName))
-    .then(r => r.json())
-    .then(data => {
-        let filtered = data.filter(x => x.item_code === input.value);
-
-        let html = "";
-
-        if (filtered.length === 0) {
-            html = "<p>No history found</p>";
-        } else {
-            filtered.reverse().forEach(h => {
-                html += `
-                    <div style="border-bottom:1px solid #ddd; padding:5px;">
-                        <b>${h.date} ${h.time}</b><br>
-                        User: ${h.user}<br>
-                        IN: ${h.in} | OUT: ${h.out} | SOH: ${h.soh}
-                    </div>
-                `;
-            });
-        }
-
-        document.getElementById("historyContent").innerHTML = html;
-        document.getElementById("popup").style.display = "block";
-    });
-}
-
-function closePopup() {
-    document.getElementById("popup").style.display = "none";
-}
-</script>
-
-</body>
-</html>
-
-input {
-    width: 100%;
-    text-align: center;
-}
-
-/* REMARK COLORS */
-.urgent { background: #ffcc00; }
-.critical { background: orange; }
-.out { background: red; color: white; }
-
-/* SEARCH HIGHLIGHT (ONLY INPUT) */
-.highlight {
-    background: yellow !important;
-}
-
-/* BUTTON */
-.add {
-    margin-top: 10px;
-    padding: 10px;
-    background: green;
-    color: white;
-    border: none;
-    cursor: pointer;
-}
-
-/* DELETE */
-.del {
-    background: red;
-    color: white;
-    border: none;
-    cursor: pointer;
-}
-</style>
-</head>
-
-<body>
-
-<div class="box">
-
-<h1>{{ module_name }}</h1>
-
-<div class="topbar">
-    <button class="back" onclick="location.href='/dashboard'">← Back</button>
-    <input class="search" id="searchBox" placeholder="Search..." oninput="searchTable()">
-</div>
-
-<div class="table-wrap">
-<table>
-<thead>
-<tr>
-<th>CODE</th>
-<th>DESCRIPTION</th>
-<th>UOM</th>
-<th>OUT</th>
-<th>IN</th>
-<th>SOH</th>
-<th>REMARK</th>
-<th>ACTION</th>
-</tr>
-</thead>
-
-<tbody id="tbody"></tbody>
-</table>
-</div>
-
-<button class="add" onclick="addRow()">+ Add Item</button>
-
-</div>
-
-<!-- HISTORY POPUP -->
-<div id="popup" style="display:none; position:fixed; top:20%; left:50%; transform:translate(-50%); background:white; padding:20px; border:1px solid #ccc; z-index:999;">
-    <h3>History</h3>
-    <div id="historyContent"></div>
-    <button onclick="closePopup()">Close</button>
-</div>
-
-<script>
-const moduleName = "{{ module_name }}";
-
-// ================= LOAD =================
-window.onload = load;
-
-function load() {
-    fetch("/get_items/" + encodeURIComponent(moduleName))
-    .then(r => r.json())
-    .then(data => {
-        const tbody = document.getElementById("tbody");
-        tbody.innerHTML = "";
-        if (!data || data.length === 0) addRow();
-        data.forEach(addRow);
-    });
-}
-
-// ================= ADD ROW =================
-function addRow(item = {}) {
-    const tbody = document.getElementById("tbody");
-
-    const row = document.createElement("tr");
-
-    row.innerHTML = `
-        <td><input value="${item.code || ''}" oncontextmenu="openHistory(event,this)"></td>
-        <td><input value="${item.desc || ''}"></td>
-        <td><input value="${item.uom || ''}"></td>
-        <td><input type="number" value="0"></td>
-        <td><input type="number" value="0"></td>
-        <td><input value="${item.soh || 0}" readonly></td>
-        <td><input readonly></td>
-        <td><button class="del" onclick="deleteRow(this)">X</button></td>
-    `;
-
-    row.cells[3].querySelector("input").onkeydown =
-    row.cells[4].querySelector("input").onkeydown =
-    function(e) {
-        if (e.key === "Enter") process(row);
-    };
-
-    tbody.appendChild(row);
-}
-
-// ================= IN / OUT =================
-function process(row) {
-    let out = parseInt(row.cells[3].querySelector("input").value) || 0;
-    let inp = parseInt(row.cells[4].querySelector("input").value) || 0;
-
-    let sohInput = row.cells[5].querySelector("input");
-    let soh = parseInt(sohInput.value) || 0;
-
-    soh = soh + inp - out;
-    if (soh < 0) soh = 0;
-
-    sohInput.value = soh;
-
-    let remark = row.cells[6].querySelector("input");
-
-    if (soh === 0) {
-        remark.value = "OUT OF STOCK";
-        remark.className = "out";
-    } else if (soh <= 2) {
-        remark.value = "CRITICAL";
-        remark.className = "critical";
-    } else if (soh <= 5) {
-        remark.value = "URGENT";
-        remark.className = "urgent";
-    } else {
-        remark.value = "";
-        remark.className = "";
-    }
-
-    save();
-}
-
-// ================= SAVE =================
-function save() {
-    let items = [];
-
-    document.querySelectorAll("#tbody tr").forEach(r => {
-        items.push({
-            code: r.cells[0].querySelector("input").value,
-            desc: r.cells[1].querySelector("input").value,
-            uom: r.cells[2].querySelector("input").value,
-            soh: r.cells[5].querySelector("input").value
-        });
-    });
-
-    fetch("/save_items/" + encodeURIComponent(moduleName), {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({items})
-    });
-}
-
-// ================= DELETE =================
-function deleteRow(btn) {
-    btn.closest("tr").remove();
-    save();
-}
-
-// ================= SEARCH FIXED =================
-function searchTable() {
-    const val = document.getElementById("searchBox").value.toLowerCase();
-
-    document.querySelectorAll("#tbody tr").forEach(row => {
-        const code = row.cells[0].querySelector("input");
-        const desc = row.cells[1].querySelector("input");
-
-        code.classList.remove("highlight");
-        desc.classList.remove("highlight");
-
-        if (
-            code.value.toLowerCase().includes(val) ||
-            desc.value.toLowerCase().includes(val)
-        ) {
-            code.classList.add("highlight");
-            desc.classList.add("highlight");
-            row.scrollIntoView({behavior:"smooth", block:"center"});
-        }
-    });
-}
-
-// ================= HISTORY (REAL RESTORE) =================
-function openHistory(event, input) {
-    event.preventDefault();
-
-    fetch("/get_history/" + encodeURIComponent(moduleName))
-    .then(r => r.json())
-    .then(data => {
-        let filtered = data.filter(x => x.item_code === input.value);
-
-        let html = "";
-
-        if (filtered.length === 0) {
-            html = "<p>No history found</p>";
-        } else {
-            filtered.reverse().forEach(h => {
-                html += `
-                    <div style="border-bottom:1px solid #ddd; padding:5px;">
-                        <b>${h.date} ${h.time}</b><br>
-                        User: ${h.user}<br>
-                        IN: ${h.in} | OUT: ${h.out} | SOH: ${h.soh}
-                    </div>
-                `;
-            });
-        }
-
-        document.getElementById("historyContent").innerHTML = html;
-        document.getElementById("popup").style.display = "block";
-    });
-}
-
-function closePopup() {
-    document.getElementById("popup").style.display = "none";
-}
-</script>
-
-</body>
-    </html>
+        </html>
