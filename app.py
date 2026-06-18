@@ -49,7 +49,7 @@ def init_db():
         )
     ''')
 
-    # History - ETO KULANG MO KANINA KAYA NAG-500
+    # History
     cur.execute('''
         CREATE TABLE IF NOT EXISTS history (
             id SERIAL PRIMARY KEY,
@@ -215,6 +215,24 @@ def save_items(module):
     conn.close()
     return jsonify({'status': 'ok'})
 
+@app.route('/add_history/<module>', methods=['POST'])
+def add_history(module):
+    if 'user' not in session:
+        return jsonify({'status': 'error'})
+
+    data = request.get_json()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO history (module, date, time, username, item_code, item_desc, in_qty, out_qty, soh)
+        VALUES (%s, CURRENT_DATE, CURRENT_TIME, %s, %s, %s, %s, %s, %s)
+    """, (module, session['user'], data.get('item_code'), data.get('item_desc'),
+          data.get('in', 0), data.get('out', 0), data.get('soh', 0)))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return jsonify({'status': 'ok'})
+
 @app.route('/get_history/<module>')
 def get_history(module):
     if 'user' not in session:
@@ -233,7 +251,6 @@ def get_history(module):
         cur.close()
         conn.close()
 
-        # Match sa JS mo - 'in' at 'out' gamit ko dito
         history = [{
             'date': str(r[0]),
             'time': str(r[1]),
@@ -247,7 +264,7 @@ def get_history(module):
         return jsonify(history)
     except Exception as e:
         print(f"ERROR sa get_history: {e}")
-        return jsonify([]) # Return empty para di mag-crash web mo
+        return jsonify([])
 
 @app.route('/logout')
 def logout():
