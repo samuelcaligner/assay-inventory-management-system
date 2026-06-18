@@ -15,9 +15,9 @@ def get_db():
 def index():
     error = None
     if request.method == 'POST':
-        username = request.form['username'].strip()
-        password = request.form['password']
-        action = request.form['action']
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
+        action = request.form.get('action')
 
         conn = get_db()
         cur = conn.cursor()
@@ -189,7 +189,7 @@ def get_history(module):
     conn = get_db()
     cur = conn.cursor()
     cur.execute('SELECT item_code, item_desc, in_qty, out_qty, soh, date, time, "user" FROM history WHERE module_name = %s ORDER BY id DESC LIMIT 100', (module,))
-    history = [{'item_code':r[0],'item_desc':r[1],'in':r[2],'out':r[3],'soh':r[4],'date':str(r[5]),'time':r[6],'user':r[7]} for r in cur.fetchall()]
+    history = [{'item_code':r[0],'item_desc':r[1],'in':r[2],'out':r[3],'soh':r[4],'date':str(r[5]),'time':str(r[6]),'user':r[7]} for r in cur.fetchall()]
     cur.close()
     conn.close()
     return jsonify(history)
@@ -197,7 +197,7 @@ def get_history(module):
 @app.route('/add_history/<module>', methods=['POST'])
 def add_history(module):
     if 'user_id' not in session:
-        return jsonify({'status': 'error'})
+        return jsonify({'status':'error'})
     data = request.json
     now = datetime.now()
 
@@ -211,4 +211,4 @@ def add_history(module):
     return jsonify({'status': 'ok'})
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
