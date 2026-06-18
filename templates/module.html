@@ -19,23 +19,20 @@ body {
     border-radius: 10px;
 }
 
-/* HEADER */
+/* TITLE */
 h1 {
     text-align: center;
     color: #007bff;
-    margin-bottom: 10px;
 }
 
 /* TOP BAR */
-.top-bar {
+.topbar {
     display: flex;
     justify-content: space-between;
-    align-items: center;
     margin-bottom: 10px;
 }
 
-/* BACK BUTTON */
-.back-btn {
+.back {
     padding: 8px 12px;
     background: #6c757d;
     color: white;
@@ -45,19 +42,18 @@ h1 {
 }
 
 /* SEARCH */
-.search-box {
+.search {
     padding: 8px;
-    width: 250px;
+    width: 260px;
     border: 2px solid #007bff;
     border-radius: 5px;
 }
 
-/* TABLE SCROLL FIX */
-.table-container {
+/* TABLE SCROLL */
+.table-wrap {
     max-height: 450px;
     overflow-y: auto;
     border: 1px solid #ddd;
-    border-radius: 5px;
 }
 
 /* TABLE */
@@ -66,14 +62,12 @@ table {
     border-collapse: collapse;
 }
 
-/* STICKY HEADER */
 th {
     position: sticky;
     top: 0;
     background: #007bff;
     color: white;
     padding: 8px;
-    z-index: 2;
 }
 
 td {
@@ -84,12 +78,21 @@ td {
 
 input {
     width: 100%;
-    padding: 5px;
     text-align: center;
 }
 
+/* REMARK COLORS */
+.urgent { background: #ffcc00; }
+.critical { background: orange; }
+.out { background: red; color: white; }
+
+/* SEARCH HIGHLIGHT (ONLY INPUT) */
+.highlight {
+    background: yellow !important;
+}
+
 /* BUTTON */
-.btn-add {
+.add {
     margin-top: 10px;
     padding: 10px;
     background: green;
@@ -99,21 +102,11 @@ input {
 }
 
 /* DELETE */
-.del-btn {
+.del {
     background: red;
     color: white;
     border: none;
     cursor: pointer;
-}
-
-/* LOW STOCK ALERT */
-.low-stock {
-    display: none;
-    background: #fff3cd;
-    color: #856404;
-    padding: 10px;
-    border-radius: 5px;
-    margin-bottom: 10px;
 }
 </style>
 </head>
@@ -122,105 +115,87 @@ input {
 
 <div class="box">
 
-    <h1>{{ module_name }}</h1>
+<h1>{{ module_name }}</h1>
 
-    <!-- BACK + SEARCH RESTORED -->
-    <div class="top-bar">
-        <button class="back-btn" onclick="window.location.href='/dashboard'">
-            ← Back to Dashboard
-        </button>
+<div class="topbar">
+    <button class="back" onclick="location.href='/dashboard'">← Back</button>
+    <input class="search" id="searchBox" placeholder="Search..." oninput="searchTable()">
+</div>
 
-        <input type="text" class="search-box" id="searchBox"
-               placeholder="Search item code or description..."
-               oninput="searchTable()">
-    </div>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>CODE</th>
+<th>DESCRIPTION</th>
+<th>UOM</th>
+<th>OUT</th>
+<th>IN</th>
+<th>SOH</th>
+<th>REMARK</th>
+<th>ACTION</th>
+</tr>
+</thead>
 
-    <!-- LOW STOCK -->
-    <div id="lowStockBox" class="low-stock">
-        ⚠ Low Stock Items
-        <ul id="lowStockList"></ul>
-    </div>
+<tbody id="tbody"></tbody>
+</table>
+</div>
 
-    <!-- TABLE -->
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>CODE</th>
-                    <th>DESCRIPTION</th>
-                    <th>UOM</th>
-                    <th>OUT</th>
-                    <th>IN</th>
-                    <th>SOH</th>
-                    <th>REMARK</th>
-                    <th>ACTION</th>
-                </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-        </table>
-    </div>
+<button class="add" onclick="addRow()">+ Add Item</button>
 
-    <button class="btn-add" onclick="addRow()">+ Add Item</button>
+</div>
 
+<!-- HISTORY POPUP -->
+<div id="popup" style="display:none; position:fixed; top:20%; left:50%; transform:translate(-50%); background:white; padding:20px; border:1px solid #ccc; z-index:999;">
+    <h3>History</h3>
+    <div id="historyContent"></div>
+    <button onclick="closePopup()">Close</button>
 </div>
 
 <script>
 const moduleName = "{{ module_name }}";
 
 // ================= LOAD =================
-window.onload = function () {
-    loadItems();
-    loadLowStock();
-};
+window.onload = load;
 
-// ================= ITEMS =================
-function loadItems() {
+function load() {
     fetch("/get_items/" + encodeURIComponent(moduleName))
-    .then(res => res.json())
+    .then(r => r.json())
     .then(data => {
         const tbody = document.getElementById("tbody");
         tbody.innerHTML = "";
-
-        if (!data || data.length === 0) {
-            addRow();
-            return;
-        }
-
-        data.forEach(item => addRow(item));
+        if (!data || data.length === 0) addRow();
+        data.forEach(addRow);
     });
 }
 
 // ================= ADD ROW =================
-function addRow(item = null) {
-    const data = item || {
-        code: "",
-        desc: "",
-        uom: "",
-        soh: 0
-    };
+function addRow(item = {}) {
+    const tbody = document.getElementById("tbody");
 
     const row = document.createElement("tr");
 
     row.innerHTML = `
-        <td><input value="${data.code}" onchange="saveAll()"></td>
-        <td><input value="${data.desc}" onchange="saveAll()"></td>
-        <td><input value="${data.uom}" onchange="saveAll()"></td>
+        <td><input value="${item.code || ''}" oncontextmenu="openHistory(event,this)"></td>
+        <td><input value="${item.desc || ''}"></td>
+        <td><input value="${item.uom || ''}"></td>
         <td><input type="number" value="0"></td>
         <td><input type="number" value="0"></td>
-        <td><input value="${data.soh}" readonly></td>
-        <td><input value="" readonly></td>
-        <td><button class="del-btn" onclick="deleteRow(this)">X</button></td>
+        <td><input value="${item.soh || 0}" readonly></td>
+        <td><input readonly></td>
+        <td><button class="del" onclick="deleteRow(this)">X</button></td>
     `;
 
     row.cells[3].querySelector("input").onkeydown =
-    row.cells[4].querySelector("input").onkeydown = function (e) {
+    row.cells[4].querySelector("input").onkeydown =
+    function(e) {
         if (e.key === "Enter") process(row);
     };
 
-    document.getElementById("tbody").appendChild(row);
+    tbody.appendChild(row);
 }
 
-// ================= PROCESS =================
+// ================= IN / OUT =================
 function process(row) {
     let out = parseInt(row.cells[3].querySelector("input").value) || 0;
     let inp = parseInt(row.cells[4].querySelector("input").value) || 0;
@@ -233,89 +208,107 @@ function process(row) {
 
     sohInput.value = soh;
 
-    row.cells[3].querySelector("input").value = 0;
-    row.cells[4].querySelector("input").value = 0;
+    let remark = row.cells[6].querySelector("input");
 
-    saveAll();
+    if (soh === 0) {
+        remark.value = "OUT OF STOCK";
+        remark.className = "out";
+    } else if (soh <= 2) {
+        remark.value = "CRITICAL";
+        remark.className = "critical";
+    } else if (soh <= 5) {
+        remark.value = "URGENT";
+        remark.className = "urgent";
+    } else {
+        remark.value = "";
+        remark.className = "";
+    }
+
+    save();
 }
 
 // ================= SAVE =================
-function saveAll() {
-    const rows = [];
+function save() {
+    let items = [];
 
-    document.querySelectorAll("#tbody tr").forEach(row => {
-        rows.push({
-            code: row.cells[0].querySelector("input").value,
-            desc: row.cells[1].querySelector("input").value,
-            uom: row.cells[2].querySelector("input").value,
-            soh: row.cells[5].querySelector("input").value
+    document.querySelectorAll("#tbody tr").forEach(r => {
+        items.push({
+            code: r.cells[0].querySelector("input").value,
+            desc: r.cells[1].querySelector("input").value,
+            uom: r.cells[2].querySelector("input").value,
+            soh: r.cells[5].querySelector("input").value
         });
     });
 
     fetch("/save_items/" + encodeURIComponent(moduleName), {
         method: "POST",
         headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({items: rows})
+        body: JSON.stringify({items})
     });
 }
 
 // ================= DELETE =================
 function deleteRow(btn) {
-    if (confirm("Delete item?")) {
-        btn.closest("tr").remove();
-        saveAll();
-    }
+    btn.closest("tr").remove();
+    save();
 }
 
-// ================= SEARCH (RESTORED) =================
+// ================= SEARCH FIXED =================
 function searchTable() {
     const val = document.getElementById("searchBox").value.toLowerCase();
-    const rows = document.querySelectorAll("#tbody tr");
 
-    let firstMatch = null;
+    document.querySelectorAll("#tbody tr").forEach(row => {
+        const code = row.cells[0].querySelector("input");
+        const desc = row.cells[1].querySelector("input");
 
-    rows.forEach(row => {
-        const code = row.cells[0].querySelector("input").value.toLowerCase();
-        const desc = row.cells[1].querySelector("input").value.toLowerCase();
+        code.classList.remove("highlight");
+        desc.classList.remove("highlight");
 
-        row.style.background = "";
-
-        if (code.includes(val) || desc.includes(val)) {
-            row.style.background = "yellow";
-            if (!firstMatch) firstMatch = row;
+        if (
+            code.value.toLowerCase().includes(val) ||
+            desc.value.toLowerCase().includes(val)
+        ) {
+            code.classList.add("highlight");
+            desc.classList.add("highlight");
+            row.scrollIntoView({behavior:"smooth", block:"center"});
         }
     });
-
-    if (firstMatch) {
-        firstMatch.scrollIntoView({behavior: "smooth", block: "center"});
-    }
 }
 
-// ================= LOW STOCK =================
-function loadLowStock() {
-    fetch("/low_stock/" + encodeURIComponent(moduleName))
-    .then(res => res.json())
+// ================= HISTORY (REAL RESTORE) =================
+function openHistory(event, input) {
+    event.preventDefault();
+
+    fetch("/get_history/" + encodeURIComponent(moduleName))
+    .then(r => r.json())
     .then(data => {
-        const box = document.getElementById("lowStockBox");
-        const list = document.getElementById("lowStockList");
+        let filtered = data.filter(x => x.item_code === input.value);
 
-        list.innerHTML = "";
+        let html = "";
 
-        if (!data || data.length === 0) {
-            box.style.display = "none";
-            return;
+        if (filtered.length === 0) {
+            html = "<p>No history found</p>";
+        } else {
+            filtered.reverse().forEach(h => {
+                html += `
+                    <div style="border-bottom:1px solid #ddd; padding:5px;">
+                        <b>${h.date} ${h.time}</b><br>
+                        User: ${h.user}<br>
+                        IN: ${h.in} | OUT: ${h.out} | SOH: ${h.soh}
+                    </div>
+                `;
+            });
         }
 
-        data.forEach(i => {
-            const li = document.createElement("li");
-            li.textContent = `${i.code} - ${i.desc} (SOH: ${i.soh})`;
-            list.appendChild(li);
-        });
-
-        box.style.display = "block";
+        document.getElementById("historyContent").innerHTML = html;
+        document.getElementById("popup").style.display = "block";
     });
+}
+
+function closePopup() {
+    document.getElementById("popup").style.display = "none";
 }
 </script>
 
 </body>
-</html>
+    </html>
