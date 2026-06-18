@@ -10,6 +10,7 @@ body {
     padding: 20px;
 }
 
+/* MAIN BOX */
 .box {
     background: white;
     padding: 20px;
@@ -18,41 +19,76 @@ body {
     border-radius: 10px;
 }
 
+/* HEADER */
 h1 {
     text-align: center;
     color: #007bff;
+    margin-bottom: 10px;
 }
 
-.table-scroll {
+/* TOP BAR */
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+/* BACK BUTTON */
+.back-btn {
+    padding: 8px 12px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+/* SEARCH */
+.search-box {
+    padding: 8px;
+    width: 250px;
+    border: 2px solid #007bff;
+    border-radius: 5px;
+}
+
+/* TABLE SCROLL FIX */
+.table-container {
     max-height: 450px;
     overflow-y: auto;
     border: 1px solid #ddd;
+    border-radius: 5px;
 }
 
+/* TABLE */
 table {
     width: 100%;
     border-collapse: collapse;
 }
 
-th, td {
-    border: 1px solid #ddd;
-    padding: 6px;
-    text-align: center;
-}
-
+/* STICKY HEADER */
 th {
-    background: #007bff;
-    color: white;
     position: sticky;
     top: 0;
+    background: #007bff;
+    color: white;
+    padding: 8px;
+    z-index: 2;
+}
+
+td {
+    border: 1px solid #ddd;
+    padding: 5px;
+    text-align: center;
 }
 
 input {
     width: 100%;
-    padding: 6px;
+    padding: 5px;
     text-align: center;
 }
 
+/* BUTTON */
 .btn-add {
     margin-top: 10px;
     padding: 10px;
@@ -62,27 +98,22 @@ input {
     cursor: pointer;
 }
 
+/* DELETE */
 .del-btn {
     background: red;
     color: white;
     border: none;
     cursor: pointer;
-    padding: 5px;
 }
 
-.remark-ok { background: white; }
-.remark-low { background: yellow; }
-.remark-urgent { background: orange; }
-.remark-out { background: red; color: white; }
-
-.low-stock-box {
+/* LOW STOCK ALERT */
+.low-stock {
     display: none;
     background: #fff3cd;
     color: #856404;
     padding: 10px;
-    margin-bottom: 10px;
-    border: 1px solid #ffeeba;
     border-radius: 5px;
+    margin-bottom: 10px;
 }
 </style>
 </head>
@@ -93,13 +124,25 @@ input {
 
     <h1>{{ module_name }}</h1>
 
-    <!-- 🔔 LOW STOCK ALERT -->
-    <div id="lowStockBox" class="low-stock-box">
-        ⚠ Low Stock Alert
+    <!-- BACK + SEARCH RESTORED -->
+    <div class="top-bar">
+        <button class="back-btn" onclick="window.location.href='/dashboard'">
+            ← Back to Dashboard
+        </button>
+
+        <input type="text" class="search-box" id="searchBox"
+               placeholder="Search item code or description..."
+               oninput="searchTable()">
+    </div>
+
+    <!-- LOW STOCK -->
+    <div id="lowStockBox" class="low-stock">
+        ⚠ Low Stock Items
         <ul id="lowStockList"></ul>
     </div>
 
-    <div class="table-scroll">
+    <!-- TABLE -->
+    <div class="table-container">
         <table>
             <thead>
                 <tr>
@@ -118,6 +161,7 @@ input {
     </div>
 
     <button class="btn-add" onclick="addRow()">+ Add Item</button>
+
 </div>
 
 <script>
@@ -129,7 +173,7 @@ window.onload = function () {
     loadLowStock();
 };
 
-// ================= LOAD ITEMS =================
+// ================= ITEMS =================
 function loadItems() {
     fetch("/get_items/" + encodeURIComponent(moduleName))
     .then(res => res.json())
@@ -148,16 +192,11 @@ function loadItems() {
 
 // ================= ADD ROW =================
 function addRow(item = null) {
-    const tbody = document.getElementById("tbody");
-
     const data = item || {
         code: "",
         desc: "",
         uom: "",
-        out: 0,
-        in: 0,
-        soh: 0,
-        remark: ""
+        soh: 0
     };
 
     const row = document.createElement("tr");
@@ -169,70 +208,35 @@ function addRow(item = null) {
         <td><input type="number" value="0"></td>
         <td><input type="number" value="0"></td>
         <td><input value="${data.soh}" readonly></td>
-        <td><input value="${data.remark || ''}" readonly></td>
+        <td><input value="" readonly></td>
         <td><button class="del-btn" onclick="deleteRow(this)">X</button></td>
     `;
 
-    // ENTER KEY for stock movement
     row.cells[3].querySelector("input").onkeydown =
     row.cells[4].querySelector("input").onkeydown = function (e) {
-        if (e.key === "Enter") processRow(row);
+        if (e.key === "Enter") process(row);
     };
 
-    tbody.appendChild(row);
+    document.getElementById("tbody").appendChild(row);
 }
 
-// ================= PROCESS STOCK =================
-function processRow(row) {
-    const code = row.cells[0].querySelector("input");
-    const desc = row.cells[1].querySelector("input");
-
-    let outVal = parseInt(row.cells[3].querySelector("input").value) || 0;
-    let inVal = parseInt(row.cells[4].querySelector("input").value) || 0;
+// ================= PROCESS =================
+function process(row) {
+    let out = parseInt(row.cells[3].querySelector("input").value) || 0;
+    let inp = parseInt(row.cells[4].querySelector("input").value) || 0;
 
     let sohInput = row.cells[5].querySelector("input");
     let soh = parseInt(sohInput.value) || 0;
 
-    if (outVal > soh) {
-        alert("Not enough stock!");
-        return;
-    }
-
-    soh = soh + inVal - outVal;
+    soh = soh + inp - out;
     if (soh < 0) soh = 0;
 
     sohInput.value = soh;
-
-    const remark = getRemark(soh);
-    const remarkInput = row.cells[6].querySelector("input");
-    remarkInput.value = remark.text;
-    remarkInput.className = remark.class;
-
-    // history
-    fetch("/add_history/" + encodeURIComponent(moduleName), {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            item_code: code.value,
-            item_desc: desc.value,
-            in: inVal,
-            out: outVal,
-            soh: soh
-        })
-    });
 
     row.cells[3].querySelector("input").value = 0;
     row.cells[4].querySelector("input").value = 0;
 
     saveAll();
-}
-
-// ================= REMARK =================
-function getRemark(soh) {
-    if (soh === 0) return {text:"OUT OF STOCK", class:"remark-out"};
-    if (soh <= 5) return {text:"LOW STOCK", class:"remark-urgent"};
-    if (soh <= 10) return {text:"OK", class:"remark-low"};
-    return {text:"GOOD", class:"remark-ok"};
 }
 
 // ================= SAVE =================
@@ -244,10 +248,7 @@ function saveAll() {
             code: row.cells[0].querySelector("input").value,
             desc: row.cells[1].querySelector("input").value,
             uom: row.cells[2].querySelector("input").value,
-            out: 0,
-            in: 0,
-            soh: row.cells[5].querySelector("input").value,
-            remark: row.cells[6].querySelector("input").value
+            soh: row.cells[5].querySelector("input").value
         });
     });
 
@@ -260,9 +261,33 @@ function saveAll() {
 
 // ================= DELETE =================
 function deleteRow(btn) {
-    if (confirm("Delete this item?")) {
+    if (confirm("Delete item?")) {
         btn.closest("tr").remove();
         saveAll();
+    }
+}
+
+// ================= SEARCH (RESTORED) =================
+function searchTable() {
+    const val = document.getElementById("searchBox").value.toLowerCase();
+    const rows = document.querySelectorAll("#tbody tr");
+
+    let firstMatch = null;
+
+    rows.forEach(row => {
+        const code = row.cells[0].querySelector("input").value.toLowerCase();
+        const desc = row.cells[1].querySelector("input").value.toLowerCase();
+
+        row.style.background = "";
+
+        if (code.includes(val) || desc.includes(val)) {
+            row.style.background = "yellow";
+            if (!firstMatch) firstMatch = row;
+        }
+    });
+
+    if (firstMatch) {
+        firstMatch.scrollIntoView({behavior: "smooth", block: "center"});
     }
 }
 
@@ -281,9 +306,9 @@ function loadLowStock() {
             return;
         }
 
-        data.forEach(item => {
+        data.forEach(i => {
             const li = document.createElement("li");
-            li.textContent = `${item.code} - ${item.desc} (SOH: ${item.soh})`;
+            li.textContent = `${i.code} - ${i.desc} (SOH: ${i.soh})`;
             list.appendChild(li);
         });
 
