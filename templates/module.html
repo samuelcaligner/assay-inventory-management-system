@@ -43,7 +43,6 @@ h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1
     outline: none;
     border-color: #0056b3;
 }
-
 .table-scroll {
     max-height: 400px;
     overflow-y: auto;
@@ -51,7 +50,6 @@ h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1
     border-radius: 4px;
     margin-top: 15px;
 }
-
 .table-scroll thead th {
     position: sticky;
     top: 0;
@@ -59,11 +57,9 @@ h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1
     color: white;
     z-index: 3;
 }
-
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
 input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
-
 /* Wag i-gray pag may remark color */
 input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef!important; cursor: not-allowed; }
 
@@ -184,8 +180,8 @@ window.onload = loadItems;
 
 function loadItems() {
     fetch('/get_items/' + encodeURIComponent(moduleName))
-.then(res => res.json())
-.then(items => {
+  .then(res => res.json())
+  .then(items => {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         if(items.length === 0) addRow();
@@ -194,12 +190,11 @@ function loadItems() {
 }
 
 function addRow() {
-    addRowToTable({code:'', desc:'', uom:'', out:'', in:'', soh:0, remark:''}, -1);
+    addRowToTable({code:'', desc:'', uom:'', out:0, in:0, soh:0, remark:''}, -1);
 }
 
 function getRemark(soh, hasItem) {
     if(!hasItem) return {text: '', class: 'remark-normal'};
-
     soh = parseInt(soh) || 0;
     if(soh === 0) return {text: 'OUT OF STOCK', class: 'outstock'};
     if(soh === 1) return {text: 'URGENT', class: 'urgent'};
@@ -213,7 +208,6 @@ function addRowToTable(item, index) {
 
     const hasItem = item.code && item.code.trim()!== '' && item.desc && item.desc.trim()!== '';
     const remark = getRemark(item.soh, hasItem);
-
     const inReadonly = isAdmin? '' : 'readonly';
 
     row.innerHTML = `
@@ -307,8 +301,8 @@ function deleteRow(btn) {
 function showHistory(event, itemCode) {
     event.preventDefault();
     fetch('/get_history/' + encodeURIComponent(moduleName))
-.then(res => res.json())
-.then(history => {
+  .then(res => res.json())
+  .then(history => {
         const filtered = history.filter(h => h.item_code === itemCode);
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = '';
@@ -345,7 +339,6 @@ function closeHistory() {
 function searchTable() {
     const searchVal = document.getElementById('searchBox').value.toLowerCase();
     const rows = document.querySelectorAll('#tableBody tr');
-    let firstMatch = null;
 
     rows.forEach(row => {
         row.cells[0].querySelector('input').classList.remove('highlight');
@@ -364,21 +357,10 @@ function searchTable() {
         if(code.includes(searchVal) || desc.includes(searchVal)) {
             row.cells[0].querySelector('input').classList.add('highlight');
             row.cells[1].querySelector('input').classList.add('highlight');
-
-            if(!firstMatch) firstMatch = row;
         }
     });
-
-    // Auto-scroll sa first match sa loob ng table lang
-    if(firstMatch) {
-        const tableScroll = document.querySelector('.table-scroll');
-        const rowTop = firstMatch.offsetTop;
-        tableScroll.scrollTo({
-            top: rowTop - 50,
-            behavior: 'smooth'
-        });
-    }
 }
 </script>
+
 </body>
 </html>
