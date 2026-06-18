@@ -6,113 +6,43 @@
 body { font-family: Arial; background: #f4f4f4; padding: 20px; position: relative; overflow: hidden; }
 .box { background: white; padding: 20px; border-radius: 8px; max-width: 1200px; margin: auto; position: relative; z-index: 1; }
 .bg-watermark {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 8vw;
-    font-weight: bold;
-    color: rgba(0,0,0,0.03);
-    z-index: 0;
-    pointer-events: none;
-    word-wrap: break-word;
-    padding: 20px;
-    line-height: 1.3;
-    text-align: center;
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8vw; font-weight: bold; color: rgba(0,0,0,0.03);
+    z-index: 0; pointer-events: none; text-align: center; word-wrap: break-word;
+    padding: 20px; line-height: 1.3;
 }
 h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
 .back { display: inline-block; margin-bottom: 15px; padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
-.table-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-}
-.search-box {
-    padding: 8px 12px;
-    border: 2px solid #007bff;
-    border-radius: 6px;
-    width: 250px;
-    font-size: 14px;
-}
-.search-box:focus {
-    outline: none;
-    border-color: #0056b3;
-}
-.table-scroll {
-    max-height: 400px;
-    overflow-y: auto;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    margin-top: 15px;
-}
+.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.search-box { padding: 8px 12px; border: 2px solid #007bff; border-radius: 6px; width: 250px; font-size: 14px; }
+.search-box:focus { outline: none; border-color: #0056b3; }
+.table-scroll { max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin-top: 15px; }
 .table-scroll thead th {
-    position: sticky;
-    top: 0;
-    background: #007bff;
-    color: white;
-    z-index: 3;
+    position: sticky; top: 0; background: #007bff; color: white; z-index: 3;
 }
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
 input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
 /* Wag i-gray pag may remark color */
 input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef!important; cursor: not-allowed; }
-
 /* REMARK COLORS - 3 levels */
-.remark-normal {
-    background: white!important;
-    color: black!important;
-}
-.urgent {
-    background: red!important;
-    color: white!important;
-    font-weight: bold;
-}
-.critical {
-    background: #ffc107!important;
-    color: black!important;
-    font-weight: bold;
-}
-.outstock {
-    background: #dc3545!important;
-    color: white!important;
-    font-weight: bold;
-}
+.remark-normal { background: white!important; color: black!important; }
+.urgent { background: red!important; color: white!important; font-weight: bold; }
+.critical { background: #ffc107!important; color: black!important; font-weight: bold; }
+.outstock { background: #dc3545!important; color: white!important; font-weight: bold; }
 .highlight { background: yellow!important; }
-
 .btn-add { margin-top: 10px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
 .btn-add:hover { background: #218838; }
 .del-row { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-
 .popup {
-    display: none;
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    z-index: 1000;
-    max-height: 400px;
-    overflow-y: auto;
-    min-width: 600px;
+    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 1000; max-height: 400px; overflow-y: auto; min-width: 600px;
 }
 .overlay {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    z-index: 999;
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.5); z-index: 999;
 }
 .popup h3 { margin-top: 0; color: #007bff; }
 .close-btn { float: right; font-size: 24px; cursor: pointer; }
@@ -190,7 +120,8 @@ function loadItems() {
 }
 
 function addRow() {
-    addRowToTable({code:'', desc:'', uom:'', out:0, in:0, soh:0, remark:''}, -1);
+    addRowToTable({code:'', desc:'', uom:'', out:'', in:'', soh:0, remark:''}, -1);
+    setTimeout(() => saveRow(document.querySelector('#tableBody tr:last-child input')), 100);
 }
 
 function getRemark(soh, hasItem) {
@@ -205,14 +136,13 @@ function getRemark(soh, hasItem) {
 function addRowToTable(item, index) {
     const tbody = document.getElementById('tableBody');
     const row = document.createElement('tr');
-
     const hasItem = item.code && item.code.trim()!== '' && item.desc && item.desc.trim()!== '';
     const remark = getRemark(item.soh, hasItem);
     const inReadonly = isAdmin? '' : 'readonly';
 
     row.innerHTML = `
-        <td><input type="text" value="${item.code}" oncontextmenu="showHistory(event, '${item.code}')"></td>
-        <td><input type="text" value="${item.desc}"></td>
+        <td><input type="text" value="${item.code}" onchange="saveRow(this)" oncontextmenu="showHistory(event, '${item.code}')"></td>
+        <td><input type="text" value="${item.desc}" onchange="saveRow(this)"></td>
         <td><input type="text" value="${item.uom}" onchange="saveRow(this)"></td>
         <td><input type="number" min="0" value="${item.out}" onkeydown="handleEnter(event, this, 'out')"></td>
         <td><input type="number" min="0" value="${item.in}" onkeydown="handleEnter(event, this, 'in')" ${inReadonly}></td>
@@ -226,7 +156,6 @@ function addRowToTable(item, index) {
 function handleEnter(event, input, type) {
     if(event.key === 'Enter') {
         event.preventDefault();
-
         if(type === 'in' &&!isAdmin) return;
 
         const row = input.closest('tr');
@@ -243,7 +172,6 @@ function handleEnter(event, input, type) {
 
         if(type === 'out') soh = soh - outVal;
         if(type === 'in') soh = soh + inVal;
-
         if(soh < 0) soh = 0;
         sohInput.value = soh;
 
@@ -306,7 +234,6 @@ function showHistory(event, itemCode) {
         const filtered = history.filter(h => h.item_code === itemCode);
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = '';
-
         if(filtered.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7">No history yet</td></tr>';
         } else {
@@ -324,7 +251,6 @@ function showHistory(event, itemCode) {
                 `;
             });
         }
-
         document.getElementById('popupTitle').innerText = 'History: ' + itemCode;
         document.getElementById('overlay').style.display = 'block';
         document.getElementById('historyPopup').style.display = 'block';
@@ -339,6 +265,7 @@ function closeHistory() {
 function searchTable() {
     const searchVal = document.getElementById('searchBox').value.toLowerCase();
     const rows = document.querySelectorAll('#tableBody tr');
+    let firstMatch = null;
 
     rows.forEach(row => {
         row.cells[0].querySelector('input').classList.remove('highlight');
@@ -353,14 +280,18 @@ function searchTable() {
     rows.forEach(row => {
         const code = row.cells[0].querySelector('input').value.toLowerCase();
         const desc = row.cells[1].querySelector('input').value.toLowerCase();
-
         if(code.includes(searchVal) || desc.includes(searchVal)) {
             row.cells[0].querySelector('input').classList.add('highlight');
             row.cells[1].querySelector('input').classList.add('highlight');
+            if(!firstMatch) firstMatch = row;
         }
     });
+
+    // AUTO SCROLL SA FIRST MATCH
+    if(firstMatch) {
+        firstMatch.scrollIntoView({behavior: 'smooth', block: 'center'});
+    }
 }
 </script>
-
 </body>
 </html>
