@@ -75,17 +75,17 @@ input {
     text-align: center;
 }
 
-/* remarks */
+/* REMARK COLORS */
 .urgent { background: #ffcc00; }
 .critical { background: orange; }
 .out { background: red; color: white; }
 
-/* search highlight */
+/* SEARCH HIGHLIGHT */
 .highlight {
     background: yellow !important;
 }
 
-/* buttons */
+/* BUTTONS */
 .add {
     margin-top: 10px;
     padding: 10px;
@@ -102,7 +102,7 @@ input {
     cursor: pointer;
 }
 
-/* popup */
+/* POPUP */
 #popup {
     display: none;
     position: fixed;
@@ -162,7 +162,7 @@ input {
 <script>
 const moduleName = "{{ module_name }}";
 
-// prevent duplicate rendering
+// prevent double load bug
 let hasLoaded = false;
 
 // ================= LOAD =================
@@ -217,7 +217,7 @@ function addRow(item = {}) {
     tbody.appendChild(row);
 }
 
-// ================= PROCESS =================
+// ================= PROCESS (RESTORED REMARK LOGIC) =================
 function process(row) {
     let out = parseInt(row.cells[3].querySelector("input").value) || 0;
     let inp = parseInt(row.cells[4].querySelector("input").value) || 0;
@@ -232,15 +232,19 @@ function process(row) {
 
     let remark = row.cells[6].querySelector("input");
 
+    // 🔥 ORIGINAL LOGIC RESTORED
     if (soh === 0) {
-        remark.value = "OUT OF STOCK";
+        remark.value = "NO STOCK";
         remark.className = "out";
-    } else if (soh <= 2) {
-        remark.value = "CRITICAL";
-        remark.className = "critical";
-    } else if (soh <= 5) {
+
+    } else if (soh === 1) {
         remark.value = "URGENT";
         remark.className = "urgent";
+
+    } else if (soh === 2) {
+        remark.value = "CRITICAL";
+        remark.className = "critical";
+
     } else {
         remark.value = "";
         remark.className = "";
@@ -248,7 +252,7 @@ function process(row) {
 
     save();
 
-    // reset IN/OUT
+    // reset inputs
     row.cells[3].querySelector("input").value = 0;
     row.cells[4].querySelector("input").value = 0;
 }
@@ -279,7 +283,7 @@ function deleteRow(btn) {
     save();
 }
 
-// ================= SEARCH (FIXED + SCROLL RESET) =================
+// ================= SEARCH + SCROLL RESET =================
 function searchTable() {
     const val = document.getElementById("searchBox").value.toLowerCase().trim();
     const rows = document.querySelectorAll("#tbody tr");
@@ -301,26 +305,26 @@ function searchTable() {
     let firstMatch = null;
 
     rows.forEach(row => {
-        const codeInput = row.cells[0].querySelector("input");
-        const descInput = row.cells[1].querySelector("input");
+        const code = row.cells[0].querySelector("input");
+        const desc = row.cells[1].querySelector("input");
 
         const match =
-            codeInput.value.toLowerCase().includes(val) ||
-            descInput.value.toLowerCase().includes(val);
+            code.value.toLowerCase().includes(val) ||
+            desc.value.toLowerCase().includes(val);
 
         if (match) {
-            codeInput.classList.add("highlight");
-            descInput.classList.add("highlight");
+            code.classList.add("highlight");
+            desc.classList.add("highlight");
 
             if (!firstMatch) firstMatch = row;
         } else {
-            codeInput.classList.remove("highlight");
-            descInput.classList.remove("highlight");
+            code.classList.remove("highlight");
+            desc.classList.remove("highlight");
         }
     });
 
     if (firstMatch) {
-        firstMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+        firstMatch.scrollIntoView({behavior: "smooth", block: "center"});
     }
 }
 
@@ -361,4 +365,4 @@ function closePopup() {
 </script>
 
 </body>
-</html>
+    </html>
