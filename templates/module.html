@@ -13,7 +13,7 @@ body { font-family: Arial; background: #f4f4f4; padding: 20px; position: relativ
     padding: 20px; line-height: 1.3;
 }
 h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
-.back { display: inline-block; margin-bottom: 15px; padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
+.back { display: inline-block; margin-bottom: 15px; padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 5px; }
 .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .search-box { padding: 8px 12px; border: 2px solid #007bff; border-radius: 6px; width: 250px; font-size: 14px; }
 .search-box:focus { outline: none; border-color: #0056b3; }
@@ -24,9 +24,7 @@ h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
 input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
-/* Wag i-gray pag may remark color */
 input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef!important; cursor: not-allowed; }
-/* REMARK COLORS - 3 levels */
 .remark-normal { background: white!important; color: black!important; }
 .urgent { background: red!important; color: white!important; font-weight: bold; }
 .critical { background: #ffc107!important; color: black!important; font-weight: bold; }
@@ -34,7 +32,7 @@ input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef
 .highlight { background: yellow!important; }
 .btn-add { margin-top: 10px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
 .btn-add:hover { background: #218838; }
-.del-row { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+.del-row { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; }
 .popup {
     display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
     background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
@@ -81,6 +79,7 @@ input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef
     </div>
 
     <button class="btn-add" onclick="addRow()">+ Add Item</button>
+    <button class="btn-add" style="background:#007bff" onclick="saveAll()">💾 Save All to Database</button>
 </div>
 
 <div class="overlay" id="overlay" onclick="closeHistory()"></div>
@@ -106,16 +105,19 @@ input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef
 <script>
 const moduleName = "{{ module_name }}";
 const isAdmin = {{ 'true' if is_admin else 'false' }};
+
+// IMPORTANTE TO PRE - AUTO LOAD PAG OPEN
 window.onload = loadItems;
 
 function loadItems() {
     fetch('/get_items/' + encodeURIComponent(moduleName))
-  .then(res => res.json())
-  .then(items => {
+   .then(res => res.json())
+   .then(items => {
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
         if(items.length === 0) addRow();
         items.forEach((item, index) => addRowToTable(item, index));
+        console.log("Loaded", items.length, "items from DB");
     });
 }
 
@@ -141,12 +143,12 @@ function addRowToTable(item, index) {
     const inReadonly = isAdmin? '' : 'readonly';
 
     row.innerHTML = `
-        <td><input type="text" value="${item.code}" onchange="saveRow(this)" oncontextmenu="showHistory(event, '${item.code}')"></td>
-        <td><input type="text" value="${item.desc}" onchange="saveRow(this)"></td>
-        <td><input type="text" value="${item.uom}" onchange="saveRow(this)"></td>
-        <td><input type="number" min="0" value="${item.out}" onkeydown="handleEnter(event, this, 'out')"></td>
-        <td><input type="number" min="0" value="${item.in}" onkeydown="handleEnter(event, this, 'in')" ${inReadonly}></td>
-        <td><input type="number" value="${item.soh}" readonly></td>
+        <td><input type="text" value="${item.code || ''}" onchange="saveRow(this)" oncontextmenu="showHistory(event, '${item.code}')"></td>
+        <td><input type="text" value="${item.desc || ''}" onchange="saveRow(this)"></td>
+        <td><input type="text" value="${item.uom || ''}" onchange="saveRow(this)"></td>
+        <td><input type="number" min="0" value="${item.out || ''}" onkeydown="handleEnter(event, this, 'out')"></td>
+        <td><input type="number" min="0" value="${item.in || ''}" onkeydown="handleEnter(event, this, 'in')" ${inReadonly}></td>
+        <td><input type="number" value="${item.soh || 0}" readonly></td>
         <td><input type="text" value="${remark.text}" readonly class="${remark.class}"></td>
         <td><button class="del-row" onclick="deleteRow(this)">X</button></td>
     `;
@@ -219,6 +221,37 @@ function saveRow(input) {
     });
 }
 
+// BAGONG FUNCTION TO PRE - MANUAL SAVE BUTTON
+function saveAll() {
+    const rows = [];
+    document.querySelectorAll('#tableBody tr').forEach(row => {
+        rows.push({
+            code: row.cells[0].querySelector('input').value,
+            desc: row.cells[1].querySelector('input').value,
+            uom: row.cells[2].querySelector('input').value,
+            out: row.cells[3].querySelector('input').value,
+            in: row.cells[4].querySelector('input').value,
+            soh: row.cells[5].querySelector('input').value,
+            remark: row.cells[6].querySelector('input').value
+        });
+    });
+
+    fetch('/save_items/' + encodeURIComponent(moduleName), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({items: rows})
+    })
+   .then(res => res.json())
+   .then(data => {
+        if(data.status == 'ok') {
+            alert('✅ Saved to database!');
+            loadItems();
+        } else {
+            alert('❌ Error saving');
+        }
+    });
+}
+
 function deleteRow(btn) {
     if(confirm('Delete this item?')) {
         btn.closest('tr').remove();
@@ -229,8 +262,8 @@ function deleteRow(btn) {
 function showHistory(event, itemCode) {
     event.preventDefault();
     fetch('/get_history/' + encodeURIComponent(moduleName))
-  .then(res => res.json())
-  .then(history => {
+   .then(res => res.json())
+   .then(history => {
         const filtered = history.filter(h => h.item_code === itemCode);
         const tbody = document.getElementById('historyBody');
         tbody.innerHTML = '';
