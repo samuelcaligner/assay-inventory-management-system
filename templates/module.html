@@ -1,106 +1,69 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>{{ module_name }} - ASSAY INVENTORY</title>
+<title>{{ module_name }} - Inventory</title>
 <style>
-body { font-family: Arial; background: #f4f4f4; padding: 20px; position: relative; overflow: hidden; }
-.box { background: white; padding: 20px; border-radius: 8px; max-width: 1200px; margin: auto; position: relative; z-index: 1; }
-.bg-watermark {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 8vw; font-weight: bold; color: rgba(0,0,0,0.03);
-    z-index: 0; pointer-events: none; text-align: center; word-wrap: break-word;
-    padding: 20px; line-height: 1.3;
-}
-h1 { color: #007bff; text-align: center; margin-bottom: 20px; text-shadow: 1px 1px 2px rgba(255,255,255,0.8); }
+body { font-family: Arial; background: #f4f4f4; padding: 20px; }
+.box { background: white; padding: 20px; border-radius: 8px; max-width: 1200px; margin: auto; }
+h1 { color: #007bff; text-align: center; margin-bottom: 20px; }
 .back { display: inline-block; margin-bottom: 15px; padding: 8px 15px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
-.table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.search-box { padding: 8px 12px; border: 2px solid #007bff; border-radius: 6px; width: 250px; font-size: 14px; }
-.search-box:focus { outline: none; border-color: #0056b3; }
-.table-scroll { max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; margin-top: 15px; }
-.table-scroll thead th {
-    position: sticky; top: 0; background: #007bff; color: white; z-index: 3;
-}
 table { width: 100%; border-collapse: collapse; }
 th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-input { width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; text-align: center; }
-/* Wag i-gray pag may remark color */
-input[readonly]:not(.urgent):not(.critical):not(.outstock) { background: #e9ecef!important; cursor: not-allowed; }
-/* REMARK COLORS - 3 levels */
-.remark-normal { background: white!important; color: black!important; }
-.urgent { background: red!important; color: white!important; font-weight: bold; }
-.critical { background: #ffc107!important; color: black!important; font-weight: bold; }
-.outstock { background: #dc3545!important; color: white!important; font-weight: bold; }
-.highlight { background: yellow!important; }
+th { background: #007bff; color: white; position: sticky; top: 0; }
+input { width: 95%; padding: 6px; border: 1px solid #ccc; border-radius: 4px; text-align: center; }
+input[readonly] { background: #e9ecef; cursor: not-allowed; }
+.outstock { background: #dc3545!important; color: white; font-weight: bold; }
+.critical { background: #ffc107!important; color: black; font-weight: bold; }
+.urgent { background: red!important; color: white; font-weight: bold; }
 .btn-add { margin-top: 10px; padding: 10px 20px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-.btn-add:hover { background: #218838; }
 .del-row { background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
-.popup {
-    display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    z-index: 1000; max-height: 400px; overflow-y: auto; min-width: 600px;
-}
-.overlay {
-    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); z-index: 999;
-}
-.popup h3 { margin-top: 0; color: #007bff; }
+.search-box { padding: 8px 12px; border: 2px solid #007bff; border-radius: 6px; width: 250px; margin-bottom: 10px; }
+.highlight { background: yellow!important; }
+.popup { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); z-index: 1000; max-height: 400px; overflow-y: auto; min-width: 600px; }
+.overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999; }
 .close-btn { float: right; font-size: 24px; cursor: pointer; }
-.history-table { font-size: 12px; width: 100%; }
 </style>
 </head>
 <body>
-
-<div class="bg-watermark">ASSAY<br>LABORATORY</div>
-
 <div class="box">
-    <a href="/dashboard" class="back">← Back to Dashboard</a>
-    <h1>{{ module_name }} - Stock on Hand</h1>
+<a href="/dashboard" class="back">← Back to Dashboard</a>
+<h1>{{ module_name }} - Stock Inventory</h1>
 
-    <div class="table-header">
-        <div></div>
-        <input type="text" class="search-box" id="searchBox" placeholder="Search Item Code or Description..." oninput="searchTable()">
-    </div>
+<div>
+<input type="text" class="search-box" id="searchBox" placeholder="Search Item Code or Description..." oninput="searchTable()">
+</div>
 
-    <div class="table-scroll">
-        <table id="sohTable">
-            <thead>
-                <tr>
-                    <th>ITEM CODE</th>
-                    <th>ITEM DESCRIPTION</th>
-                    <th>UNIT OF MEASURE</th>
-                    <th>OUT</th>
-                    <th>IN</th>
-                    <th>SOH</th>
-                    <th>REMARK</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="tableBody"></tbody>
-        </table>
-    </div>
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
+<table id="itemTable">
+<thead>
+<tr>
+<th>ITEM CODE</th>
+<th>DESCRIPTION</th>
+<th>UOM</th>
+<th>OUT</th>
+<th>IN</th>
+<th>SOH</th>
+<th>REMARK</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
 
-    <button class="btn-add" onclick="addRow()">+ Add Item</button>
+<button class="btn-add" onclick="addRow()">+ Add Item</button>
 </div>
 
 <div class="overlay" id="overlay" onclick="closeHistory()"></div>
 <div class="popup" id="historyPopup">
-    <span class="close-btn" onclick="closeHistory()">&times;</span>
-    <h3 id="popupTitle">Transaction History</h3>
-    <table class="history-table" id="historyTable">
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>Time</th>
-                <th>User</th>
-                <th>Item Desc</th>
-                <th>IN</th>
-                <th>OUT</th>
-                <th>SOH</th>
-            </tr>
-        </thead>
-        <tbody id="historyBody"></tbody>
-    </table>
+<span class="close-btn" onclick="closeHistory()">×</span>
+<h3 id="popupTitle">Transaction History</h3>
+<table style="width: 100%; font-size: 12px;">
+<thead>
+<tr><th>Date</th><th>Time</th><th>User</th><th>Desc</th><th>IN</th><th>OUT</th><th>SOH</th></tr>
+</thead>
+<tbody id="historyBody"></tbody>
+</table>
 </div>
 
 <script>
@@ -109,188 +72,159 @@ const isAdmin = {{ 'true' if is_admin else 'false' }};
 window.onload = loadItems;
 
 function loadItems() {
-    fetch('/get_items/' + encodeURIComponent(moduleName))
-  .then(res => res.json())
-  .then(items => {
-        const tbody = document.getElementById('tableBody');
-        tbody.innerHTML = '';
-        if(items.length === 0) addRow();
-        items.forEach((item, index) => addRowToTable(item, index));
-    });
+fetch(`/get_items/${encodeURIComponent(moduleName)}`)
+.then(res => res.json())
+.then(items => {
+const tbody = document.getElementById('tableBody');
+tbody.innerHTML = '';
+if(items.length === 0) addRow();
+items.forEach(item => addRowToTable(item));
+});
 }
 
 function addRow() {
-    addRowToTable({code:'', desc:'', uom:'', out:'', in:'', soh:0, remark:''}, -1);
-    setTimeout(() => saveRow(document.querySelector('#tableBody tr:last-child input')), 100);
+addRowToTable({item_code:'', item_desc:'', uom:'', out:0, in:0, soh:0, remark:''});
 }
 
 function getRemark(soh, hasItem) {
-    if(!hasItem) return {text: '', class: 'remark-normal'};
-    soh = parseInt(soh) || 0;
-    if(soh === 0) return {text: 'OUT OF STOCK', class: 'outstock'};
-    if(soh === 1) return {text: 'URGENT', class: 'urgent'};
-    if(soh >= 2) return {text: 'CRITICAL', class: 'critical'};
-    return {text: '', class: 'remark-normal'};
+if(!hasItem) return {text: '', class: ''};
+if(soh === 0) return {text: 'OUT OF STOCK', class: 'outstock'};
+if(soh === 1) return {text: 'URGENT', class: 'urgent'};
+if(soh <= 5) return {text: 'CRITICAL', class: 'critical'};
+return {text: '', class: ''};
 }
 
-function addRowToTable(item, index) {
-    const tbody = document.getElementById('tableBody');
-    const row = document.createElement('tr');
-    const hasItem = item.code && item.code.trim()!== '' && item.desc && item.desc.trim()!== '';
-    const remark = getRemark(item.soh, hasItem);
-    const inReadonly = isAdmin? '' : 'readonly';
+function addRowToTable(item) {
+const tbody = document.getElementById('tableBody');
+const row = document.createElement('tr');
+const hasItem = item.item_code && item.item_code.trim()!== '' && item.item_desc && item.item_desc.trim()!== '';
+const remark = getRemark(item.soh, hasItem);
+const inReadonly = isAdmin? '' : 'readonly';
 
-    row.innerHTML = `
-        <td><input type="text" value="${item.code}" onchange="saveRow(this)" oncontextmenu="showHistory(event, '${item.code}')"></td>
-        <td><input type="text" value="${item.desc}" onchange="saveRow(this)"></td>
-        <td><input type="text" value="${item.uom}" onchange="saveRow(this)"></td>
-        <td><input type="number" min="0" value="${item.out}" onkeydown="handleEnter(event, this, 'out')"></td>
-        <td><input type="number" min="0" value="${item.in}" onkeydown="handleEnter(event, this, 'in')" ${inReadonly}></td>
-        <td><input type="number" value="${item.soh}" readonly></td>
-        <td><input type="text" value="${remark.text}" readonly class="${remark.class}"></td>
-        <td><button class="del-row" onclick="deleteRow(this)">X</button></td>
-    `;
-    tbody.appendChild(row);
+row.innerHTML = `
+<td><input type="text" value="${item.item_code || ''}" onchange="saveRow(this)" oncontextmenu="showHistory(event, '${item.item_code || ''}')"></td>
+<td><input type="text" value="${item.item_desc || ''}" onchange="saveRow(this)"></td>
+<td><input type="text" value="${item.uom || ''}" onchange="saveRow(this)"></td>
+<td><input type="number" min="0" value="${item.out || 0}" onkeydown="handleEnter(event, this, 'out')"></td>
+<td><input type="number" min="0" value="${item.in || 0}" onkeydown="handleEnter(event, this, 'in')" ${inReadonly}></td>
+<td><input type="number" value="${item.soh || 0}" readonly></td>
+<td><input type="text" value="${remark.text}" readonly class="${remark.class}"></td>
+<td><button class="del-row" onclick="deleteRow(this)">X</button></td>
+`;
+tbody.appendChild(row);
 }
 
 function handleEnter(event, input, type) {
-    if(event.key === 'Enter') {
-        event.preventDefault();
-        if(type === 'in' &&!isAdmin) return;
+if(event.key === 'Enter') {
+event.preventDefault();
+const row = input.closest('tr');
+const outInput = row.cells[3].querySelector('input');
+const inInput = row.cells[4].querySelector('input');
+const sohInput = row.cells[5].querySelector('input');
+const remarkInput = row.cells[6].querySelector('input');
+const codeInput = row.cells[0].querySelector('input');
+const descInput = row.cells[1].querySelector('input');
 
-        const row = input.closest('tr');
-        const outInput = row.cells[3].querySelector('input');
-        const inInput = row.cells[4].querySelector('input');
-        const sohInput = row.cells[5].querySelector('input');
-        const remarkInput = row.cells[6].querySelector('input');
-        const codeInput = row.cells[0].querySelector('input');
-        const descInput = row.cells[1].querySelector('input');
+let soh = parseInt(sohInput.value) || 0;
+let outVal = parseInt(outInput.value) || 0;
+let inVal = parseInt(inInput.value) || 0;
 
-        let soh = parseInt(sohInput.value) || 0;
-        let outVal = parseInt(outInput.value) || 0;
-        let inVal = parseInt(inInput.value) || 0;
+if(type === 'out') soh = Math.max(0, soh - outVal);
+if(type === 'in') soh = soh + inVal;
+sohInput.value = soh;
 
-        if(type === 'out') soh = soh - outVal;
-        if(type === 'in') soh = soh + inVal;
-        if(soh < 0) soh = 0;
-        sohInput.value = soh;
+const hasItem = codeInput.value.trim()!== '' && descInput.value.trim()!== '';
+const remark = getRemark(soh, hasItem);
+remarkInput.value = remark.text;
+remarkInput.className = remark.class;
 
-        const hasItem = codeInput.value.trim()!== '' && descInput.value.trim()!== '';
-        const remark = getRemark(soh, hasItem);
-        remarkInput.value = remark.text;
-        remarkInput.className = remark.class;
+if(type === 'out' && outVal > 0) addHistory(codeInput.value, descInput.value, 0, outVal, soh);
+if(type === 'in' && inVal > 0) addHistory(codeInput.value, descInput.value, inVal, 0, soh);
 
-        fetch('/add_history/' + encodeURIComponent(moduleName), {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                item_code: codeInput.value,
-                item_desc: descInput.value,
-                in: type === 'in'? inVal : 0,
-                out: type === 'out'? outVal : 0,
-                soh: soh
-            })
-        });
+outInput.value = '';
+inInput.value = '';
+saveRow(input);
+}
+}
 
-        outInput.value = '';
-        inInput.value = '';
-        saveRow(input);
-    }
+function addHistory(item_code, item_desc, in_val, out_val, soh) {
+fetch(`/add_history/${encodeURIComponent(moduleName)}`, {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({item_code, item_desc, in: in_val, out: out_val, soh})
+});
 }
 
 function saveRow(input) {
-    const rows = [];
-    document.querySelectorAll('#tableBody tr').forEach(row => {
-        rows.push({
-            code: row.cells[0].querySelector('input').value,
-            desc: row.cells[1].querySelector('input').value,
-            uom: row.cells[2].querySelector('input').value,
-            out: row.cells[3].querySelector('input').value,
-            in: row.cells[4].querySelector('input').value,
-            soh: row.cells[5].querySelector('input').value,
-            remark: row.cells[6].querySelector('input').value
-        });
-    });
+const rows = [];
+document.querySelectorAll('#tableBody tr').forEach(row => {
+rows.push({
+item_code: row.cells[0].querySelector('input').value,
+item_desc: row.cells[1].querySelector('input').value,
+uom: row.cells[2].querySelector('input').value,
+out: row.cells[3].querySelector('input').value,
+in: row.cells[4].querySelector('input').value,
+soh: row.cells[5].querySelector('input').value,
+remark: row.cells[6].querySelector('input').value
+});
+});
 
-    fetch('/save_items/' + encodeURIComponent(moduleName), {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({items: rows})
-    });
+fetch(`/save_items/${encodeURIComponent(moduleName)}`, {
+method: 'POST',
+headers: {'Content-Type': 'application/json'},
+body: JSON.stringify({items: rows})
+});
 }
 
 function deleteRow(btn) {
-    if(confirm('Delete this item?')) {
-        btn.closest('tr').remove();
-        saveRow(btn);
-    }
+if(confirm('Delete this item?')) {
+btn.closest('tr').remove();
+saveRow(btn);
+}
 }
 
-function showHistory(event, itemCode) {
-    event.preventDefault();
-    fetch('/get_history/' + encodeURIComponent(moduleName))
-  .then(res => res.json())
-  .then(history => {
-        const filtered = history.filter(h => h.item_code === itemCode);
-        const tbody = document.getElementById('historyBody');
-        tbody.innerHTML = '';
-        if(filtered.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7">No history yet</td></tr>';
-        } else {
-            filtered.reverse().forEach(h => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${h.date}</td>
-                        <td>${h.time}</td>
-                        <td>${h.user}</td>
-                        <td>${h.item_desc || ''}</td>
-                        <td>${h.in}</td>
-                        <td>${h.out}</td>
-                        <td>${h.soh}</td>
-                    </tr>
-                `;
-            });
-        }
-        document.getElementById('popupTitle').innerText = 'History: ' + itemCode;
-        document.getElementById('overlay').style.display = 'block';
-        document.getElementById('historyPopup').style.display = 'block';
-    });
+function showHistory(event, item_code) {
+event.preventDefault();
+fetch(`/get_history/${encodeURIComponent(moduleName)}`)
+.then(res => res.json())
+.then(history => {
+const filtered = history.filter(h => h.item_code === item_code);
+const tbody = document.getElementById('historyBody');
+tbody.innerHTML = '';
+if(filtered.length === 0) {
+tbody.innerHTML = '<tr><td colspan="7">No history yet</td></tr>';
+} else {
+filtered.reverse().forEach(h => {
+tbody.innerHTML += `<tr>
+<td>${h.date}</td><td>${h.time}</td><td>${h.user}</td>
+<td>${h.item_desc || ''}</td><td>${h.in}</td><td>${h.out}</td><td>${sod}</td>
+</tr>`;
+});
+}
+document.getElementById('popupTitle').innerText = 'History: ' + item_code;
+document.getElementById('overlay').style.display = 'block';
+document.getElementById('historyPopup').style.display = 'block';
+});
 }
 
 function closeHistory() {
-    document.getElementById('overlay').style.display = 'none';
-    document.getElementById('historyPopup').style.display = 'none';
+document.getElementById('overlay').style.display = 'none';
+document.getElementById('historyPopup').style.display = 'none';
 }
 
 function searchTable() {
-    const searchVal = document.getElementById('searchBox').value.toLowerCase();
-    const rows = document.querySelectorAll('#tableBody tr');
-    let firstMatch = null;
-
-    rows.forEach(row => {
-        row.cells[0].querySelector('input').classList.remove('highlight');
-        row.cells[1].querySelector('input').classList.remove('highlight');
-    });
-
-    if(searchVal === '') {
-        document.querySelector('.box').scrollIntoView({behavior: 'smooth'});
-        return;
-    }
-
-    rows.forEach(row => {
-        const code = row.cells[0].querySelector('input').value.toLowerCase();
-        const desc = row.cells[1].querySelector('input').value.toLowerCase();
-        if(code.includes(searchVal) || desc.includes(searchVal)) {
-            row.cells[0].querySelector('input').classList.add('highlight');
-            row.cells[1].querySelector('input').classList.add('highlight');
-            if(!firstMatch) firstMatch = row;
-        }
-    });
-
-    // AUTO SCROLL SA FIRST MATCH
-    if(firstMatch) {
-        firstMatch.scrollIntoView({behavior: 'smooth', block: 'center'});
-    }
+const val = document.getElementById('searchBox').value.toLowerCase();
+const rows = document.querySelectorAll('#tableBody tr');
+rows.forEach(row => {
+row.cells[0].querySelector('input').classList.remove('highlight');
+row.cells[1].querySelector('input').classList.remove('highlight');
+const code = row.cells[0].querySelector('input').value.toLowerCase();
+const desc = row.cells[1].querySelector('input').value.toLowerveCase();
+if(val && (code.includes(val) || desc.includes(val))) {
+row.cells[0].querySelector('input').classList.add('highlight');
+row.cells[1].querySelector('input').classList.add('highlight');
+}
+});
 }
 </script>
 </body>
