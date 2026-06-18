@@ -5,19 +5,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
 app = Flask(__name__)
-app.secret_key = 'assay_secret_key_2026'
+app.secret_key = os.environ.get('SECRET_KEY', 'assay_secret_key_2026')
 
-DATABASE_URL = os.getenv('DATABASE_URL')
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(DATABASE_URL, sslmode='require')
     return conn
 
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
 
-    # Users table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id SERIAL PRIMARY KEY,
@@ -26,7 +25,6 @@ def init_db():
         )
     ''')
 
-    # Modules table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS modules (
             id SERIAL PRIMARY KEY,
@@ -34,13 +32,12 @@ def init_db():
         )
     ''')
 
-    # Items table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS items (
             id SERIAL PRIMARY KEY,
-            module VARCHAR(255) NOT NULL,
+            module_name VARCHAR(255) NOT NULL,
             item_code VARCHAR(255),
-            item_desc TEXT,
+            description TEXT,
             quantity INTEGER DEFAULT 0,
             in_qty INTEGER DEFAULT 0,
             out_qty INTEGER DEFAULT 0,
@@ -48,23 +45,19 @@ def init_db():
         )
     ''')
 
-    # History table
     cur.execute('''
         CREATE TABLE IF NOT EXISTS history (
             id SERIAL PRIMARY KEY,
-            module VARCHAR(255) NOT NULL,
-            date DATE,
-            time TIME,
-            username VARCHAR(255),
+            module_name VARCHAR(255) NOT NULL,
             item_code VARCHAR(255),
-            item_desc TEXT,
-            in_qty INTEGER,
-            out_qty INTEGER,
-            soh INTEGER
+            description TEXT,
+            action_type VARCHAR(50),
+            quantity INTEGER,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            username VARCHAR(255)
         )
     ''')
 
-    # Default admin account
     cur.execute("SELECT * FROM users WHERE username = 'admin'")
     if not cur.fetchone():
         hashed = generate_password_hash('admin123')
@@ -85,48 +78,45 @@ def index():
 
         conn = get_db_connection()
         cur = conn.cursor()
-
-        if action == 'login':
-            cur.execute("SELECT password FROM users WHERE username = %s", (username,))
-            result = cur.fetchone()
-            if result and check_password_hash(result[0], password):
-                session['user'] = username
-                cur.close()
-                conn.close()
-                return redirect(url_for('dashboard'))
-            else:
-                cur.close()
-                conn.close()
-                return render_template('index.html', error='Invalid username or password')
-
-        elif action == 'register':
-            cur.execute("SELECT username FROM users WHERE username = %s", (username,))
-            if cur.fetchone():
-                cur.close()
-                conn.close()
-                return render_template('index.html', error='Username already exists')
-            hashed = generate_password_hash(password)
-            cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed))
-            conn.commit()
-            session['user'] = username
-            cur.close()
-            conn.close()
-            return redirect(url_for('dashboard'))
-
+        cur.execute("SELECT password FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
         cur.close()
         conn.close()
+
+        if action == 'login':
+            if user and check_password_hash(user[0], password):
+                session['user'] = username
+                return redirect(url_for('dashboard'))
+            return render_template('index.html', error='Invalid credentials')
+
+        elif action == 'register':
+            if user:
+                return render_template('index.html', error='Username exists')
+            hashed = generate_password_hash(password)
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("INSERT INTO users (username, password) VALUES (%s, %s)", (username, hashed))
+            conn.commit()
+            cur.close()
+            conn.close()
+            session['user'] = username
+            return redirect(url_for('dashboard'))
+
     return render_template('index.html')
 
 @app.route('/dashboard')
 def dashboard():
     if 'user' not in session:
         return redirect(url_for('index'))
-    return render_template('dashboard.html', user=session['user'], is_admin=session['user']=='admin')
 
-@app.route('/logout')
-def logout():
-    session.pop('user', None)
-    return redirect(url_for('index'))
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM modules ORDER BY id")
+    modules = [row[0] for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+
+    return render_template('dashboard.html', user=session['user'], modules=modules, is_admin=(session['user']=='admin'))
 
 @app.route('/get_modules')
 def get_modules():
@@ -141,68 +131,19 @@ def get_modules():
     return jsonify(modules)
 
 @app.route('/save_modules', methods=['POST'])
-def save_modules_route():
-    if 'user' not in session:
+def save_modules():
+    if 'user' not in session or session['user']!= 'admin':
         return jsonify({'status': 'error'})
-    modules = request.json.get('modules', [])
+    data = request.get_json()
+    modules = data.get('modules', [])
+
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("DELETE FROM modules")
     for name in modules:
-        cur.execute("INSERT INTO modules (name) VALUES (%s)", (name,))
+        if name.strip():
+            cur.execute("INSERT INTO modules (name) VALUES (%s)", (name.strip(),))
     conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({'status': 'ok'})
-
-@app.route('/add_module', methods=['POST'])
-def add_module():
-    if 'user' not in session or session['user']!= 'admin':
-        return jsonify({'status': 'error', 'message': 'Admin only'})
-    name = request.json.get('name', '')
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO modules (name) VALUES (%s) ON CONFLICT (name) DO NOTHING", (name,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({'status': 'ok'})
-
-@app.route('/delete_module', methods=['POST'])
-def delete_module():
-    if 'user' not in session or session['user']!= 'admin':
-        return jsonify({'status': 'error', 'message': 'Admin only'})
-    index = request.json.get('index', -1)
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT name FROM modules ORDER BY id")
-    modules = [row[0] for row in cur.fetchall()]
-    if 0 <= index < len(modules):
-        module_name = modules[index]
-        cur.execute("DELETE FROM modules WHERE name = %s", (module_name,))
-        cur.execute("DELETE FROM items WHERE module = %s", (module_name,))
-        cur.execute("DELETE FROM history WHERE module = %s", (module_name,))
-        conn.commit()
-    cur.close()
-    conn.close()
-    return jsonify({'status': 'ok'})
-
-@app.route('/rename_module', methods=['POST'])
-def rename_module():
-    if 'user' not in session or session['user']!= 'admin':
-        return jsonify({'status': 'error', 'message': 'Admin only'})
-    index = request.json.get('index', -1)
-    new_name = request.json.get('newName', '')
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("SELECT name FROM modules ORDER BY id")
-    modules = [row[0] for row in cur.fetchall()]
-    if 0 <= index < len(modules) and new_name:
-        old_name = modules[index]
-        cur.execute("UPDATE modules SET name = %s WHERE name = %s", (new_name, old_name))
-        cur.execute("UPDATE items SET module = %s WHERE module = %s", (new_name, old_name))
-        cur.execute("UPDATE history SET module = %s WHERE module = %s", (new_name, old_name))
-        conn.commit()
     cur.close()
     conn.close()
     return jsonify({'status': 'ok'})
@@ -211,8 +152,7 @@ def rename_module():
 def module_page(name):
     if 'user' not in session:
         return redirect(url_for('index'))
-    is_admin = session['user'] == 'admin'
-    return render_template('module.html', module_name=name, is_admin=is_admin)
+    return render_template('module.html', module_name=name, user=session['user'], is_admin=(session['user']=='admin'))
 
 @app.route('/get_items/<module>')
 def get_items(module):
@@ -220,27 +160,29 @@ def get_items(module):
         return jsonify([])
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT item_code, item_desc, quantity, in_qty, out_qty, soh FROM items WHERE module = %s", (module,))
+    cur.execute("SELECT item_code, description, quantity, in_qty, out_qty, soh FROM items WHERE module_name = %s ORDER BY id", (module,))
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    items = [{'item_code': r[0], 'item_desc': r[1], 'quantity': r[2], 'in': r[3], 'out': r[4], 'soh': r[5]} for r in rows]
+    items = [{'item_code': r[0], 'description': r[1], 'quantity': r[2], 'in': r[3], 'out': r[4], 'soh': r[5]} for r in rows]
     return jsonify(items)
 
 @app.route('/save_items/<module>', methods=['POST'])
 def save_items(module):
     if 'user' not in session:
         return jsonify({'status': 'error'})
-    items = request.json.get('items', [])
+    data = request.get_json()
+    items = data.get('items', [])
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("DELETE FROM items WHERE module = %s", (module,))
+    cur.execute("DELETE FROM items WHERE module_name = %s", (module,))
     for item in items:
-        cur.execute(
-            "INSERT INTO items (module, item_code, item_desc, quantity, in_qty, out_qty, soh) VALUES (%s, %s, %s, %s, %s, %s, %s)",
-            (module, item.get('item_code'), item.get('item_desc'), item.get('quantity', 0),
-             item.get('in', 0), item.get('out', 0), item.get('soh', 0))
-        )
+        cur.execute("""
+            INSERT INTO items (module_name, item_code, description, quantity, in_qty, out_qty, soh)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, (module, item.get('item_code'), item.get('description'),
+              item.get('quantity', 0), item.get('in', 0), item.get('out', 0), item.get('soh', 0)))
     conn.commit()
     cur.close()
     conn.close()
@@ -252,29 +194,41 @@ def get_history(module):
         return jsonify([])
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT date, time, username, item_code, item_desc, in_qty, out_qty, soh FROM history WHERE module = %s ORDER BY id DESC", (module,))
+    cur.execute("""
+        SELECT date, time, username, item_code, description, action_type, quantity
+        FROM history WHERE module_name = %s ORDER BY timestamp DESC LIMIT 100
+    """, (module,))
     rows = cur.fetchall()
     cur.close()
     conn.close()
-    history = [{'date': str(r[0]), 'time': str(r[1]), 'user': r[2], 'item_code': r[3], 'item_desc': r[4], 'in': r[5], 'out': r[6], 'soh': r[7]} for r in rows]
+    history = [{'date': str(r[0]), 'time': str(r[1]), 'user': r[2], 'item_code': r[3],
+                'description': r[4], 'type': r[5], 'quantity': r[6]} for r in rows]
     return jsonify(history)
 
 @app.route('/add_history/<module>', methods=['POST'])
 def add_history(module):
     if 'user' not in session:
         return jsonify({'status': 'error'})
-    data = request.json
+    data = request.get_json()
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute(
-        "INSERT INTO history (module, date, time, username, item_code, item_desc, in_qty, out_qty, soh) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
-        (module, datetime.now().date(), datetime.now().time(), session['user'],
-         data.get('item_code'), data.get('item_desc'), data.get('in'), data.get('out'), data.get('soh'))
-    )
+    now = datetime.now()
+    cur.execute("""
+        INSERT INTO history (module_name, date, time, username, item_code, description, action_type, quantity, timestamp)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, (module, now.date(), now.time(), session['user'], data.get('item_code'),
+          data.get('description'), data.get('type'), data.get('quantity'), now))
     conn.commit()
     cur.close()
     conn.close()
     return jsonify({'status': 'ok'})
 
+@app.route('/logout')
+def logout():
+    session.pop('user', None)
+    return redirect(url_for('index'))
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
