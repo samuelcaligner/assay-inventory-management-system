@@ -9,92 +9,98 @@ body {
     font-family: Arial;
     margin: 0;
     padding: 0;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
     background: #f0f2f5;
 }
 
+/* WATERMARK */
 .bg-text {
     position: fixed;
     width: 100%;
     height: 100%;
-    font-size: 7vw;
-    color: rgba(0,0,0,0.04);
     display: flex;
-    justify-content: center;
     align-items: center;
-    text-align: center;
+    justify-content: center;
+    font-size: 6vw;
+    font-weight: bold;
+    color: rgba(0,0,0,0.03);
     pointer-events: none;
+    text-align: center;
 }
 
+/* MAIN CONTAINER */
 .container {
     position: relative;
+    max-width: 900px;
+    margin: auto;
+    margin-top: 50px;
     background: white;
-    padding: 30px;
-    border-radius: 12px;
-    width: 90%;
-    max-width: 850px;
-    text-align: center;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    padding: 25px;
+    border-radius: 10px;
 }
 
+/* TITLE */
 h1 {
-    margin-bottom: 30px;
+    text-align: center;
+    color: #333;
 }
 
-.btn-grid {
+/* GRID */
+.grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 15px;
+    margin-top: 20px;
 }
 
-.module-btn {
+/* MODULE BUTTON */
+.module {
     position: relative;
-    padding: 35px;
-    border: none;
     background: #007bff;
     color: white;
-    font-size: 18px;
+    padding: 30px;
     border-radius: 10px;
+    text-align: center;
     cursor: pointer;
+    font-weight: bold;
+    user-select: none;
 }
 
-.module-btn:hover {
-    background: #0056b3;
-}
-
+/* DELETE BUTTON */
 .del {
     position: absolute;
     top: -8px;
     right: -8px;
-    background: red;
-    color: white;
-    border-radius: 50%;
     width: 22px;
     height: 22px;
+    border-radius: 50%;
+    background: red;
+    color: white;
     border: none;
-    display: none;
     cursor: pointer;
+    display: none;
 }
 
-.module-btn:hover .del {
+/* SHOW DELETE ON HOVER */
+.module:hover .del {
     display: block;
 }
 
+/* CONTROLS */
 .controls {
     margin-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
 }
 
-button {
+.btn {
     padding: 10px 15px;
     border: none;
-    border-radius: 6px;
+    border-radius: 5px;
     cursor: pointer;
 }
 
-.add-btn {
+.add {
     background: green;
     color: white;
 }
@@ -104,8 +110,9 @@ button {
     color: white;
 }
 
+/* HIDE FOR NON ADMIN */
 .hidden {
-    display: none;
+    display: none !important;
 }
 </style>
 </head>
@@ -115,29 +122,33 @@ button {
 <div class="bg-text">ASSAY LABORATORY SYSTEM</div>
 
 <div class="container">
-    <h1>Welcome, {{ user }}</h1>
 
-    <div class="btn-grid" id="btnGrid"></div>
+    <h1>Welcome {{ user }}</h1>
+
+    <div class="grid" id="grid"></div>
 
     <div class="controls">
-        <button class="add-btn" id="addBtn" onclick="addModule()">+ Add Module</button>
-        <a href="/logout"><button class="logout">Logout</button></a>
+        <button class="btn add" id="addBtn" onclick="addModule()">+ Add Module</button>
+        <a href="/logout"><button class="btn logout">Logout</button></a>
     </div>
+
 </div>
 
 <script>
 const isAdmin = {{ 'true' if is_admin else 'false' }};
 
+// DEFAULT MODULES
 const defaultModules = [
     "Oil Lab",
     "Wet Lab",
     "Fire Assay",
-    "Sample Preparation",
+    "Sample Prep",
     "Office",
     "PPE"
 ];
 
-window.onload = () => {
+// ================= INIT =================
+window.onload = function () {
     if (!isAdmin) {
         document.getElementById("addBtn").classList.add("hidden");
     }
@@ -145,62 +156,67 @@ window.onload = () => {
     loadModules();
 };
 
-// =====================
-// LOAD MODULES
-// =====================
+// ================= LOAD MODULES =================
 function loadModules() {
     fetch("/get_modules")
     .then(res => res.json())
-    .then(modules => {
-
-        const grid = document.getElementById("btnGrid");
+    .then(data => {
+        const grid = document.getElementById("grid");
         grid.innerHTML = "";
 
-        // initialize defaults once
-        if (!modules || modules.length === 0) {
-            modules = defaultModules;
+        if (!data || data.length === 0) {
+            data = defaultModules;
 
             fetch("/save_modules", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({modules})
+                body: JSON.stringify({modules: defaultModules})
             });
         }
 
-        modules.forEach((name, index) => {
-            const btn = document.createElement("button");
-            btn.className = "module-btn";
+        data.forEach((name, index) => {
+            const div = document.createElement("div");
+            div.className = "module";
+            div.innerText = name;
 
-            btn.innerHTML = `
-                ${escapeHtml(name)}
-                ${isAdmin ? `<button class="del" onclick="deleteModule(${index}, event)">x</button>` : ""}
-            `;
-
-            btn.onclick = (e) => {
-                if (e.target.classList.contains("del")) return;
+            // OPEN MODULE
+            div.onclick = () => {
                 window.location.href = "/module/" + encodeURIComponent(name);
             };
 
+            // DELETE BUTTON (ADMIN ONLY)
             if (isAdmin) {
-                btn.oncontextmenu = (e) => {
+                const del = document.createElement("button");
+                del.innerText = "x";
+                del.className = "del";
+
+                del.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteModule(index);
+                };
+
+                div.appendChild(del);
+
+                // RENAME (RIGHT CLICK ADMIN ONLY)
+                div.oncontextmenu = (e) => {
                     e.preventDefault();
                     renameModule(index, name);
                 };
             }
 
-            grid.appendChild(btn);
+            grid.appendChild(div);
         });
     })
-    .catch(err => console.error("Load modules error:", err));
+    .catch(err => {
+        console.error("Module load error:", err);
+    });
 }
 
-// =====================
-// ADD MODULE
-// =====================
+// ================= ADD MODULE =================
 function addModule() {
     if (!isAdmin) return;
 
-    const name = prompt("Enter module name:");
+    const name = prompt("Module name:");
     if (!name) return;
 
     fetch("/add_module", {
@@ -208,68 +224,35 @@ function addModule() {
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({name: name.trim()})
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "ok") loadModules();
-        else alert(data.message || "Error adding module");
-    });
+    .then(() => loadModules());
 }
 
-// =====================
-// RENAME MODULE
-// =====================
-function renameModule(index, oldName) {
-    if (!isAdmin) return;
+// ================= DELETE =================
+function deleteModule(index) {
+    if (!confirm("Delete module?")) return;
 
+    fetch("/delete_module", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({index: index})
+    })
+    .then(() => loadModules());
+}
+
+// ================= RENAME =================
+function renameModule(index, oldName) {
     const newName = prompt("Rename module:", oldName);
-    if (!newName || newName.trim() === oldName) return;
+    if (!newName) return;
 
     fetch("/rename_module", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({
-            index,
+            index: index,
             newName: newName.trim()
         })
     })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "ok") loadModules();
-        else alert("Rename failed");
-    });
-}
-
-// =====================
-// DELETE MODULE
-// =====================
-function deleteModule(index, event) {
-    event.stopPropagation();
-
-    if (!isAdmin) return;
-
-    if (!confirm("Delete this module?")) return;
-
-    fetch("/delete_module", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({index})
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "ok") loadModules();
-    });
-}
-
-// =====================
-// SECURITY HELPER
-// =====================
-function escapeHtml(text) {
-    return text
-        .replaceAll("&", "&amp;")
-        .replaceAll("<", "&lt;")
-        .replaceAll(">", "&gt;")
-        .replaceAll('"', "&quot;")
-        .replaceAll("'", "&#039;");
+    .then(() => loadModules());
 }
 </script>
 
