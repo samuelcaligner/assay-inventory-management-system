@@ -157,7 +157,7 @@ def get_items(module):
         return jsonify([])
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT item_code, item_desc, uom, out, in, soh, remark FROM items WHERE module_name = %s ORDER BY id", (module,))
+    cur.execute("SELECT item_code, item_desc, uom, out_qty, in_qty, soh, remark FROM items WHERE module_name = %s ORDER BY id", (module,))
     items = [{'item_code':r[0],'item_desc':r[1],'uom':r[2],'out':r[3],'in':r[4],'soh':r[5],'remark':r[6]} for r in cur.fetchall()]
     cur.close()
     conn.close()
@@ -174,7 +174,7 @@ def save_items(module):
     cur.execute("DELETE FROM items WHERE module_name = %s", (module,))
     for item in items:
         if item['item_code'].strip():
-            cur.execute("INSERT INTO items (module_name, item_code, item_desc, uom, out, in, soh, remark) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            cur.execute("INSERT INTO items (module_name, item_code, item_desc, uom, out_qty, in_qty, soh, remark) VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
                         (module, item['item_code'], item['item_desc'], item['uom'], int(item['out'] or 0), int(item['in'] or 0), int(item['soh'] or 0), item['remark']))
     conn.commit()
     cur.close()
@@ -188,7 +188,7 @@ def get_history(module):
         return jsonify([])
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT item_code, item_desc, in, out, soh, date, time, user FROM history WHERE module_name = %s ORDER BY id DESC LIMIT 100", (module,))
+    cur.execute('SELECT item_code, item_desc, in_qty, out_qty, soh, date, time, "user" FROM history WHERE module_name = %s ORDER BY id DESC LIMIT 100', (module,))
     history = [{'item_code':r[0],'item_desc':r[1],'in':r[2],'out':r[3],'soh':r[4],'date':str(r[5]),'time':r[6],'user':r[7]} for r in cur.fetchall()]
     cur.close()
     conn.close()
@@ -203,7 +203,7 @@ def add_history(module):
 
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("INSERT INTO history (module_name, item_code, item_desc, in, out, soh, date, time, user) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+    cur.execute('INSERT INTO history (module_name, item_code, item_desc, in_qty, out_qty, soh, date, time, "user") VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)',
                 (module, data.get('item_code'), data.get('item_desc'), int(data.get('in') or 0), int(data.get('out') or 0), int(data.get('soh') or 0), now.date(), now.time().strftime('%H:%M:%S'), session['username']))
     conn.commit()
     cur.close()
