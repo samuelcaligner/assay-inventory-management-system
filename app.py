@@ -95,17 +95,20 @@ def save_items(module):
         # Compute quantity para di mawala pag refresh
         quantity = soh + out_qty - in_qty
 
-        cur.execute("""
-            INSERT INTO items (module, item_code, item_desc, quantity, in_qty, out_qty, soh)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (module, item_code)
-            DO UPDATE SET
-                item_desc = EXCLUDED.item_desc,
-                quantity = EXCLUDED.quantity,
-                in_qty = EXCLUDED.in_qty,
-                out_qty = EXCLUDED.out_qty,
-                soh = EXCLUDED.soh
-        """, (module, code, desc, quantity, in_qty, out_qty, soh))
+        # Check kung exist na para iwas ON CONFLICT error
+        cur.execute("SELECT id FROM items WHERE module = %s AND item_code = %s", (module, code))
+        exists = cur.fetchone()
+
+        if exists:
+            cur.execute("""
+                UPDATE items SET item_desc = %s, quantity = %s, in_qty = %s, out_qty = %s, soh = %s
+                WHERE module = %s AND item_code = %s
+            """, (desc, quantity, in_qty, out_qty, soh, module, code))
+        else:
+            cur.execute("""
+                INSERT INTO items (module, item_code, item_desc, quantity, in_qty, out_qty, soh)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (module, code, desc, quantity, in_qty, out_qty, soh))
 
     conn.commit()
     cur.close()
