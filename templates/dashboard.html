@@ -8,217 +8,222 @@
 body {
     font-family: Arial;
     margin: 0;
+    padding: 0;
     min-height: 100vh;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow-x: hidden;
     background: #f0f2f5;
 }
 
-/* MAIN CONTAINER */
-.container {
-    width: 90%;
-    max-width: 900px;
-    background: white;
-    padding: 25px;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.bg-text {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 8vw;
+    font-weight: bold;
+    color: rgba(0,0,0,0.03);
+    z-index: 0;
+    pointer-events: none;
     text-align: center;
 }
 
-h1 {
-    margin-bottom: 25px;
-    color: #333;
+.container {
+    z-index: 1;
+    position: relative;
+    text-align: center;
+    width: 90%;
+    max-width: 800px;
+    background: rgba(255,255,255,0.95);
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
 }
 
-/* MODULE GRID */
-.grid {
+h1 {
+    color: #333;
+    margin-bottom: 40px;
+}
+
+.btn-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 20px;
 }
 
-/* MODULE BUTTON */
-.module {
-    position: relative;
-    background: #007bff;
-    color: white;
-    padding: 40px 10px;
-    border-radius: 10px;
+.module-btn {
+    padding: 40px 20px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
     font-size: 18px;
     font-weight: bold;
-    cursor: pointer;
-    transition: 0.2s;
-    user-select: none;
+    background: #007bff;
+    color: white;
+    position: relative;
 }
 
-.module:hover {
+.module-btn:hover {
     transform: translateY(-3px);
 }
 
-/* DELETE BUTTON */
 .del {
     position: absolute;
     top: -10px;
     right: -10px;
     width: 25px;
     height: 25px;
-    border-radius: 50%;
-    background: red;
+    background: #dc3545;
     color: white;
     border: none;
+    border-radius: 50%;
     cursor: pointer;
     display: none;
 }
 
-/* show only on admin hover */
-.module:hover .del {
+.module-btn:hover .del {
     display: block;
 }
 
-/* CONTROLS */
 .controls {
     margin-top: 25px;
-    display: flex;
-    justify-content: center;
-    gap: 15px;
 }
 
-button {
-    padding: 10px 18px;
+.btn {
+    padding: 12px 25px;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
     font-weight: bold;
 }
 
-.add-btn {
-    background: #28a745;
-    color: white;
-}
+.btn-add { background: #28a745; color: white; }
+.btn-logout { background: #6c757d; color: white; }
 
-.logout {
-    background: #6c757d;
-    color: white;
-}
-
-/* hide admin-only */
-.hidden {
-    display: none !important;
-}
+.hidden { display: none !important; }
 </style>
 </head>
 
 <body>
 
+<div class="bg-text">ASSAY LABORATORY<br>MANAGEMENT<br>SYSTEM</div>
+
 <div class="container">
 
-<h1>Welcome, {{ user }}</h1>
+<h1>Welcome, {{ user }}! Select Section</h1>
 
-<div class="grid" id="grid"></div>
+<div class="btn-grid" id="btnGrid"></div>
 
 <div class="controls">
-    <button class="add-btn" id="addBtn" onclick="addModule()">+ Add Module</button>
-    <a href="/logout"><button class="logout">Logout</button></a>
+    <button class="btn btn-add" id="addBtn" onclick="addButton()">+ Add Module</button>
+    <a href="/logout"><button class="btn btn-logout">Logout</button></a>
 </div>
 
 </div>
 
 <script>
-const isAdmin = {{ 'true' if is_admin else 'false' }};
-const defaultModules = ['Oil Lab','Wet Lab','Fire Assay','Sample Prep','Office','PPE'];
 
-// ================= INIT =================
-window.onload = () => {
-    loadModules();
+/* ✅ FIXED ADMIN FLAG (IMPORTANT) */
+const isAdmin = {{ is_admin | tojson }};
 
-    // hide admin controls if not admin
+const defaultButtons = [
+    'Oil Lab','Wet Lab','Fire Assay',
+    'Sample Preparation','Office','PPE'
+];
+
+window.onload = function() {
+    loadButtons();
+
+    // hide admin-only button
     if (!isAdmin) {
-        document.getElementById("addBtn").classList.add("hidden");
+        document.getElementById('addBtn').classList.add('hidden');
     }
 };
 
-// ================= LOAD MODULES =================
-function loadModules() {
+function loadButtons() {
     fetch('/get_modules')
     .then(res => res.json())
-    .then(mods => {
+    .then(modules => {
 
-        if (!Array.isArray(mods) || mods.length === 0) {
-            mods = defaultModules;
+        const grid = document.getElementById('btnGrid');
+        grid.innerHTML = '';
+
+        if (!modules || modules.length === 0) {
+            modules = defaultButtons;
 
             fetch('/save_modules', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({modules: mods})
+                body: JSON.stringify({modules})
             });
         }
 
-        render(mods);
-    });
-}
+        modules.forEach((name, index) => {
 
-// ================= RENDER =================
-function render(mods) {
-    const grid = document.getElementById("grid");
-    grid.innerHTML = "";
+            const btn = document.createElement('button');
+            btn.className = 'module-btn';
+            btn.textContent = name;
 
-    mods.forEach((name, index) => {
-
-        const div = document.createElement("div");
-        div.className = "module";
-        div.textContent = name;
-
-        // open module
-        div.onclick = () => {
-            window.location.href = "/module/" + encodeURIComponent(name);
-        };
-
-        // admin delete button
-        if (isAdmin) {
-            const del = document.createElement("button");
-            del.className = "del";
-            del.innerText = "x";
-
-            del.onclick = (e) => {
-                e.stopPropagation();
-                deleteModule(index);
+            // open module
+            btn.onclick = () => {
+                window.location.href = '/module/' + encodeURIComponent(name);
             };
 
-            div.appendChild(del);
-        }
+            // ADMIN DELETE BUTTON
+            if (isAdmin) {
+                const del = document.createElement('button');
+                del.className = 'del';
+                del.innerText = 'x';
 
-        grid.appendChild(div);
+                del.onclick = (e) => {
+                    e.stopPropagation();
+                    deleteButton(index);
+                };
+
+                btn.appendChild(del);
+            }
+
+            grid.appendChild(btn);
+        });
     });
 }
 
-// ================= ADD MODULE (ADMIN ONLY) =================
-function addModule() {
+/* ADD MODULE */
+function addButton() {
     if (!isAdmin) return;
 
-    const name = prompt("Enter module name:");
-    if (!name || name.trim() === "") return;
+    const name = prompt('Enter module name:');
+    if (!name) return;
 
     fetch('/add_module', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name: name.trim()})
-    }).then(() => loadModules());
+        body: JSON.stringify({name})
+    }).then(() => loadButtons());
 }
 
-// ================= DELETE MODULE =================
-function deleteModule(index) {
+/* DELETE MODULE */
+function deleteButton(index) {
     if (!isAdmin) return;
 
-    if (!confirm("Delete this module?")) return;
+    if (!confirm('Delete this module?')) return;
 
     fetch('/delete_module', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({index})
-    }).then(() => loadModules());
+    }).then(() => loadButtons());
 }
+
 </script>
 
 </body>
-</html>
+    </html>
