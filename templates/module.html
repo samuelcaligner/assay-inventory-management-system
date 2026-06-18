@@ -162,18 +162,16 @@ input {
 <script>
 const moduleName = "{{ module_name }}";
 
-// 🔥 HARD LOCK (prevents double rendering)
+// prevent duplicate rendering
 let hasLoaded = false;
 
-// ================= LOAD (100% NO DUPLICATE BUG) =================
+// ================= LOAD =================
 function load() {
-
     if (hasLoaded) return;
     hasLoaded = true;
 
     const tbody = document.getElementById("tbody");
 
-    // HARD CLEAR (safer than innerHTML in Render)
     while (tbody.firstChild) {
         tbody.removeChild(tbody.firstChild);
     }
@@ -187,9 +185,7 @@ function load() {
             return;
         }
 
-        for (let i = 0; i < data.length; i++) {
-            addRow(data[i]);
-        }
+        data.forEach(item => addRow(item));
     });
 }
 
@@ -212,7 +208,6 @@ function addRow(item = {}) {
         <td><button class="del" onclick="deleteRow(this)">X</button></td>
     `;
 
-    // ENTER trigger
     row.cells[3].querySelector("input").onkeydown =
     row.cells[4].querySelector("input").onkeydown =
     function(e) {
@@ -222,7 +217,7 @@ function addRow(item = {}) {
     tbody.appendChild(row);
 }
 
-// ================= PROCESS IN/OUT (WITH RESET FIX) =================
+// ================= PROCESS =================
 function process(row) {
     let out = parseInt(row.cells[3].querySelector("input").value) || 0;
     let inp = parseInt(row.cells[4].querySelector("input").value) || 0;
@@ -253,7 +248,7 @@ function process(row) {
 
     save();
 
-    // RESET IN/OUT (YOUR ORIGINAL ISSUE FIXED)
+    // reset IN/OUT
     row.cells[3].querySelector("input").value = 0;
     row.cells[4].querySelector("input").value = 0;
 }
@@ -284,26 +279,49 @@ function deleteRow(btn) {
     save();
 }
 
-// ================= SEARCH =================
+// ================= SEARCH (FIXED + SCROLL RESET) =================
 function searchTable() {
-    const val = document.getElementById("searchBox").value.toLowerCase();
+    const val = document.getElementById("searchBox").value.toLowerCase().trim();
+    const rows = document.querySelectorAll("#tbody tr");
 
-    document.querySelectorAll("#tbody tr").forEach(row => {
-        const code = row.cells[0].querySelector("input");
-        const desc = row.cells[1].querySelector("input");
+    if (val === "") {
+        rows.forEach(row => {
+            row.cells[0].querySelector("input").classList.remove("highlight");
+            row.cells[1].querySelector("input").classList.remove("highlight");
+        });
 
-        code.classList.remove("highlight");
-        desc.classList.remove("highlight");
+        document.querySelector(".table-wrap").scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
 
-        if (
-            code.value.toLowerCase().includes(val) ||
-            desc.value.toLowerCase().includes(val)
-        ) {
-            code.classList.add("highlight");
-            desc.classList.add("highlight");
-            row.scrollIntoView({behavior:"smooth", block:"center"});
+        return;
+    }
+
+    let firstMatch = null;
+
+    rows.forEach(row => {
+        const codeInput = row.cells[0].querySelector("input");
+        const descInput = row.cells[1].querySelector("input");
+
+        const match =
+            codeInput.value.toLowerCase().includes(val) ||
+            descInput.value.toLowerCase().includes(val);
+
+        if (match) {
+            codeInput.classList.add("highlight");
+            descInput.classList.add("highlight");
+
+            if (!firstMatch) firstMatch = row;
+        } else {
+            codeInput.classList.remove("highlight");
+            descInput.classList.remove("highlight");
         }
     });
+
+    if (firstMatch) {
+        firstMatch.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
 }
 
 // ================= HISTORY =================
@@ -313,6 +331,7 @@ function openHistory(event, input) {
     fetch("/get_history/" + encodeURIComponent(moduleName))
     .then(r => r.json())
     .then(data => {
+
         let filtered = data.filter(x => x.item_code === input.value);
 
         let html = "";
@@ -342,4 +361,4 @@ function closePopup() {
 </script>
 
 </body>
-        </html>
+</html>
