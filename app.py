@@ -7,8 +7,8 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-# ================= SECRET KEY (RENDER SAFE) =================
-app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key")
+# ================= SECRET KEY =================
+app.secret_key = os.environ.get("SECRET_KEY", "dev_secret_key_change_me")
 
 # ================= FILES =================
 USER_FILE = "users.json"
@@ -45,6 +45,26 @@ def load_users():
 def save_users(users):
     save_json(USER_FILE, users)
 
+# ================= AUTO FIX OLD USERS =================
+def normalize_users():
+    users = load_users()
+    changed = False
+
+    for username, data in users.items():
+        # convert OLD format: "password_string"
+        if isinstance(data, str):
+            users[username] = {
+                "password": data,
+                "role": "user"
+            }
+            changed = True
+
+    if changed:
+        save_users(users)
+
+# run once at startup
+normalize_users()
+
 # ================= AUTO ADMIN =================
 def ensure_admin():
     users = load_users()
@@ -58,7 +78,7 @@ def ensure_admin():
 
 ensure_admin()
 
-# ================= LOGIN (FIXED USERNAME BUG) =================
+# ================= LOGIN =================
 @app.route("/", methods=["GET", "POST"])
 def index():
     users = load_users()
@@ -68,27 +88,26 @@ def index():
         password = request.form.get("password", "")
         action = request.form.get("action")
 
-        # ================= LOGIN =================
+        # ========== LOGIN ==========
         if action == "login":
-            if username in users:
-                user_data = users[username]
+            user_data = users.get(username)
 
-                # OLD FORMAT SUPPORT (string password)
+            if user_data:
+                # OLD format support (string hash)
                 if isinstance(user_data, str):
                     if check_password_hash(user_data, password):
                         session["user"] = username
                         return redirect("/dashboard")
 
-                # NEW FORMAT SUPPORT (dict password)
+                # NEW format support (dict)
                 elif isinstance(user_data, dict):
-                    if "password" in user_data:
-                        if check_password_hash(user_data["password"], password):
-                            session["user"] = username
-                            return redirect("/dashboard")
+                    if check_password_hash(user_data.get("password", ""), password):
+                        session["user"] = username
+                        return redirect("/dashboard")
 
             return render_template("index.html", error="Invalid username or password")
 
-        # ================= REGISTER =================
+        # ========== REGISTER ==========
         if action == "register":
             if username in users:
                 return render_template("index.html", error="Username already exists")
@@ -104,18 +123,24 @@ def index():
 
     return render_template("index.html")
 
-# ================= DASHBOARD =================
+# ================= DASHBOARD (FIXED CRASH HERE) =================
 @app.route("/dashboard")
 def dashboard():
     if "user" not in session:
         return redirect("/")
 
     users = load_users()
-    role = users.get(session["user"], {}).get("role", "user")
+    user = session["user"]
+
+    user_data = users.get(user)
+
+    role = "user"
+    if isinstance(user_data, dict):
+        role = user_data.get("role", "user")
 
     return render_template(
         "dashboard.html",
-        user=session["user"],
+        user=user,
         is_admin=(role == "admin")
     )
 
@@ -177,7 +202,7 @@ def module(name):
         return redirect("/")
 
     users = load_users()
-    role = users.get(session["user"], {}).get("role", "user")
+    role = users.get(session["user"], {}).get("role", "user") if isinstance(users.get(session["user"]), dict) else "user"
 
     return render_template(
         "module.html",
